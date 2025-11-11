@@ -1,0 +1,57 @@
+# Reduce build context size and avoid leaking local files
+
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+.next
+out
+dist
+build
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files (loaded via docker-compose)
+.env*
+!.env.example
+
+# Logs
+*.log
+logs
+
+# Testing
+coverage
+.nyc_output
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# MacOS / Editor
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Development
+.eslintcache
+.prettierrc
+.editorconfig

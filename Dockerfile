@@ -29,6 +29,10 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Set build-time environment variables (these will be replaced at runtime)
+ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder_key
+
 # Build the application (standalone mode)
 RUN npm run build
 
@@ -46,7 +50,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
-# Copy necessary files from builder
+# Copy public directory (create empty one if source is empty)
 COPY --from=builder /app/public ./public
 
 # Copy standalone output (includes minimal dependencies)

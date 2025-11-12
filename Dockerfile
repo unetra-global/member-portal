@@ -25,13 +25,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Set environment variables for build
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-
-# Set build-time environment variables (these will be replaced at runtime)
-ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder_key
+# Environment variables will be provided at runtime via docker-compose.yml
 
 # Build the application (standalone mode)
 RUN npm run build
@@ -45,10 +39,7 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+# Environment variables will be provided at runtime via docker-compose.yml
 
 # Copy public directory (create empty one if source is empty)
 COPY --from=builder /app/public ./public

@@ -7,20 +7,62 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Select } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { LoadingPage } from "@/components/ui/loading"
-import { Loader2, User, Building, MapPin, Phone, Globe, Linkedin } from "lucide-react"
+import { Loader2, User, Building, MapPin, Phone, Globe, Linkedin, FileText, Award, BadgeCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+
+interface ExperienceItem {
+  title: string
+  company: string
+  startDate?: string
+  endDate?: string
+  description?: string
+}
+
+interface LicenseItem {
+  name: string
+  issuer?: string
+  issueDate?: string
+  credentialId?: string
+}
+
+interface AwardItem {
+  title: string
+  date?: string
+  description?: string
+}
 
 interface ProfileData {
   firstName: string
   lastName: string
-  company: string
-  jobTitle: string
-  location: string
-  phone: string
-  website: string
-  bio: string
+  emailComm: string
+  phoneWhatsapp: string
+  address: string
+  city: string
+  state: string
+  country: string
+  category: string
+  subCategory: string
+  yearsExperience: string
+  yearsRelevantExperience: string
   linkedinUrl: string
+  detailedProfileText: string
+  resumeUrl: string
+  experiences: ExperienceItem[]
+  licenses: LicenseItem[]
+  awards: AwardItem[]
+  organisationName: string
+  designation: string
+  firmSize: string
+  numPartners: string
+  whyJoin: string
+  expectations: string
+  anythingElse: string
+  documents: string[]
+  acceptedRules: boolean
+  acceptedPrivacy: boolean
 }
 
 export default function CompleteProfilePage() {
@@ -31,13 +73,32 @@ export default function CompleteProfilePage() {
   const [formData, setFormData] = useState<ProfileData>({
     firstName: "",
     lastName: "",
-    company: "",
-    jobTitle: "",
-    location: "",
-    phone: "",
-    website: "",
-    bio: "",
-    linkedinUrl: ""
+    emailComm: "",
+    phoneWhatsapp: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "",
+    category: "",
+    subCategory: "",
+    yearsExperience: "",
+    yearsRelevantExperience: "",
+    linkedinUrl: "",
+    detailedProfileText: "",
+    resumeUrl: "",
+    experiences: [],
+    licenses: [],
+    awards: [],
+    organisationName: "",
+    designation: "",
+    firmSize: "",
+    numPartners: "",
+    whyJoin: "",
+    expectations: "",
+    anythingElse: "",
+    documents: [],
+    acceptedRules: false,
+    acceptedPrivacy: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const supabase = createClient()
@@ -48,7 +109,7 @@ export default function CompleteProfilePage() {
     }
   }, [user, loading, router])
 
-  const handleInputChange = (field: keyof ProfileData, value: string) => {
+  const handleInputChange = (field: keyof ProfileData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
@@ -76,17 +137,16 @@ export default function CompleteProfilePage() {
 
       if (response.ok) {
         const linkedinData = await response.json()
-        
-        // Only update fields that are not already filled
         setFormData(prev => ({
           ...prev,
           firstName: prev.firstName || linkedinData.firstName || '',
           lastName: prev.lastName || linkedinData.lastName || '',
-          company: prev.company || linkedinData.company || '',
-          jobTitle: prev.jobTitle || linkedinData.jobTitle || '',
-          location: prev.location || linkedinData.location || '',
-          bio: prev.bio || linkedinData.bio || '',
-          linkedinUrl: prev.linkedinUrl || linkedinData.linkedinUrl || ''
+          linkedinUrl: prev.linkedinUrl || linkedinData.linkedinUrl || '',
+          organisationName: prev.organisationName || linkedinData.organisationName || linkedinData.company || '',
+          designation: prev.designation || linkedinData.designation || linkedinData.jobTitle || '',
+          experiences: prev.experiences.length ? prev.experiences : (linkedinData.experiences || []),
+          licenses: prev.licenses.length ? prev.licenses : (linkedinData.licenses || []),
+          awards: prev.awards.length ? prev.awards : (linkedinData.awards || [])
         }))
       } else {
         const errorData = await response.json()
@@ -101,17 +161,23 @@ export default function CompleteProfilePage() {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = "First name is required"
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
+    if (!formData.emailComm.trim()) newErrors.emailComm = "Email for communications is required"
+    if (!formData.phoneWhatsapp.trim()) newErrors.phoneWhatsapp = "WhatsApp phone is required"
+    if (!formData.city.trim()) newErrors.city = "City is required"
+    if (!formData.state.trim()) newErrors.state = "State is required"
+    if (!formData.country.trim()) newErrors.country = "Country is required"
+    if (!formData.category.trim()) newErrors.category = "Category is required"
+    if (!formData.subCategory.trim()) newErrors.subCategory = "Sub-category is required"
+    if (!formData.yearsExperience.trim()) newErrors.yearsExperience = "Years of experience is required"
+    if (!formData.yearsRelevantExperience.trim()) newErrors.yearsRelevantExperience = "Years of relevant experience is required"
+    if (!formData.linkedinUrl && !formData.detailedProfileText && !formData.resumeUrl) {
+      newErrors.linkedinUrl = "Provide LinkedIn profile or detailed profile or resume"
     }
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = "Last name is required"
+    if (!formData.acceptedRules || !formData.acceptedPrivacy) {
+      newErrors.acceptedRules = "Please accept rules & privacy"
     }
-    if (!formData.jobTitle.trim()) {
-      newErrors.jobTitle = "Job title is required"
-    }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -129,7 +195,12 @@ export default function CompleteProfilePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          yearsExperience: Number(formData.yearsExperience || 0),
+          yearsRelevantExperience: Number(formData.yearsRelevantExperience || 0),
+          numPartners: Number(formData.numPartners || 0),
+        })
       })
 
       if (response.ok) {
@@ -151,6 +222,48 @@ export default function CompleteProfilePage() {
     router.push('/dashboard')
   }
 
+  // Storage upload helpers
+  const uploadFileToStorage = async (file: File, prefix: string) => {
+    const bucket = 'user-documents'
+    const path = `${user?.id}/${prefix}-${Date.now()}-${file.name}`
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+    if (uploadError) throw uploadError
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || !files[0]) return
+    setIsLoading(true)
+    try {
+      const url = await uploadFileToStorage(files[0], 'resume')
+      handleInputChange('resumeUrl', url)
+    } catch (err) {
+      console.error('Resume upload error:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDocumentsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setIsLoading(true)
+    try {
+      const urls: string[] = []
+      for (const file of Array.from(files)) {
+        const url = await uploadFileToStorage(file, 'doc')
+        urls.push(url)
+      }
+      handleInputChange('documents', [...formData.documents, ...urls])
+    } catch (err) {
+      console.error('Documents upload error:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (loading) {
     return <LoadingPage text="Loading profile setup..." />
   }
@@ -161,7 +274,7 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl space-y-6">
+      <div className="w-full max-w-3xl space-y-6">
         <Card className="shadow-lg">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-semibold flex items-center justify-center gap-2">
@@ -207,186 +320,237 @@ export default function CompleteProfilePage() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name Fields */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Name (readonly) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label htmlFor="firstName" className="text-sm font-medium">
-                    First Name *
-                  </label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    placeholder="Enter your first name"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
-                    className={errors.firstName ? "border-destructive" : ""}
-                    disabled={isLoading}
-                  />
-                  {errors.firstName && (
-                    <p className="text-sm text-destructive">{errors.firstName}</p>
-                  )}
+                  <label htmlFor="firstName" className="text-sm font-medium">First Name *</label>
+                  <Input id="firstName" value={formData.firstName} disabled readOnly />
+                  {errors.firstName && (<p className="text-sm text-destructive">{errors.firstName}</p>)}
                 </div>
-                
                 <div className="space-y-2">
-                  <label htmlFor="lastName" className="text-sm font-medium">
-                    Last Name *
-                  </label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    placeholder="Enter your last name"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    className={errors.lastName ? "border-destructive" : ""}
-                    disabled={isLoading}
-                  />
-                  {errors.lastName && (
-                    <p className="text-sm text-destructive">{errors.lastName}</p>
-                  )}
+                  <label htmlFor="lastName" className="text-sm font-medium">Last Name *</label>
+                  <Input id="lastName" value={formData.lastName} disabled readOnly />
+                  {errors.lastName && (<p className="text-sm text-destructive">{errors.lastName}</p>)}
                 </div>
               </div>
 
-              {/* Professional Information */}
+              {/* Communications */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label htmlFor="jobTitle" className="text-sm font-medium flex items-center gap-2">
-                    <Building className="h-4 w-4" />
-                    Job Title *
-                  </label>
-                  <Input
-                    id="jobTitle"
-                    type="text"
-                    placeholder="e.g. Software Engineer"
-                    value={formData.jobTitle}
-                    onChange={(e) => handleInputChange("jobTitle", e.target.value)}
-                    className={errors.jobTitle ? "border-destructive" : ""}
-                    disabled={isLoading}
-                  />
-                  {errors.jobTitle && (
-                    <p className="text-sm text-destructive">{errors.jobTitle}</p>
-                  )}
+                  <label htmlFor="emailComm" className="text-sm font-medium">Email for Communications *</label>
+                  <Input id="emailComm" type="email" placeholder="you@example.com" value={formData.emailComm} onChange={(e)=>handleInputChange('emailComm', e.target.value)} className={errors.emailComm ? 'border-destructive' : ''} />
+                  {errors.emailComm && (<p className="text-sm text-destructive">{errors.emailComm}</p>)}
                 </div>
-                
                 <div className="space-y-2">
-                  <label htmlFor="company" className="text-sm font-medium">
-                    Company
-                  </label>
-                  <Input
-                    id="company"
-                    type="text"
-                    placeholder="Enter your company"
-                    value={formData.company}
-                    onChange={(e) => handleInputChange("company", e.target.value)}
-                    disabled={isLoading}
-                  />
+                  <label htmlFor="phoneWhatsapp" className="text-sm font-medium flex items-center gap-2"><Phone className="h-4 w-4"/> WhatsApp Number *</label>
+                  <Input id="phoneWhatsapp" type="tel" placeholder="e.g. +1 555 123 4567" value={formData.phoneWhatsapp} onChange={(e)=>handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
+                  {errors.phoneWhatsapp && (<p className="text-sm text-destructive">{errors.phoneWhatsapp}</p>)}
                 </div>
               </div>
 
-              {/* Contact Information */}
+              {/* Location of Work */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label htmlFor="location" className="text-sm font-medium flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Location
-                  </label>
-                  <Input
-                    id="location"
-                    type="text"
-                    placeholder="e.g. San Francisco, CA"
-                    value={formData.location}
-                    onChange={(e) => handleInputChange("location", e.target.value)}
-                    disabled={isLoading}
-                  />
+                  <label htmlFor="address" className="text-sm font-medium">Address</label>
+                  <Input id="address" placeholder="Street and area" value={formData.address} onChange={(e)=>handleInputChange('address', e.target.value)} />
                 </div>
-                
                 <div className="space-y-2">
-                  <label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Phone
-                  </label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    disabled={isLoading}
-                  />
+                  <label htmlFor="city" className="text-sm font-medium">City *</label>
+                  <Input id="city" placeholder="City" value={formData.city} onChange={(e)=>handleInputChange('city', e.target.value)} className={errors.city ? 'border-destructive' : ''} />
+                  {errors.city && (<p className="text-sm text-destructive">{errors.city}</p>)}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="state" className="text-sm font-medium">State *</label>
+                  <Input id="state" placeholder="State" value={formData.state} onChange={(e)=>handleInputChange('state', e.target.value)} className={errors.state ? 'border-destructive' : ''} />
+                  {errors.state && (<p className="text-sm text-destructive">{errors.state}</p>)}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="country" className="text-sm font-medium">Country *</label>
+                  <Input id="country" placeholder="Country" value={formData.country} onChange={(e)=>handleInputChange('country', e.target.value)} className={errors.country ? 'border-destructive' : ''} />
+                  {errors.country && (<p className="text-sm text-destructive">{errors.country}</p>)}
                 </div>
               </div>
 
-              {/* Additional Information */}
-              <div className="space-y-2">
-                <label htmlFor="website" className="text-sm font-medium flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Website
-                </label>
-                <Input
-                  id="website"
-                  type="url"
-                  placeholder="https://yourwebsite.com"
-                  value={formData.website}
-                  onChange={(e) => handleInputChange("website", e.target.value)}
-                  disabled={isLoading}
-                />
+              {/* Category & Sub-Category */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="category" className="text-sm font-medium">Category of Registration *</label>
+                  <Select id="category" value={formData.category} onChange={(e)=>handleInputChange('category', (e.target as HTMLSelectElement).value)} className={errors.category ? 'border-destructive' : ''}>
+                    <option value="">Select a category</option>
+                    <option value="Consultant">Consultant</option>
+                    <option value="Advisor">Advisor</option>
+                    <option value="Auditor">Auditor</option>
+                    <option value="Lawyer">Lawyer</option>
+                    <option value="Other">Other</option>
+                  </Select>
+                  {errors.category && (<p className="text-sm text-destructive">{errors.category}</p>)}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="subCategory" className="text-sm font-medium">Service / Sub-Category *</label>
+                  <Select id="subCategory" value={formData.subCategory} onChange={(e)=>handleInputChange('subCategory', (e.target as HTMLSelectElement).value)} className={errors.subCategory ? 'border-destructive' : ''}>
+                    <option value="">Select a sub-category</option>
+                    <option value="Tax">Tax</option>
+                    <option value="Accounting">Accounting</option>
+                    <option value="Legal">Legal</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Strategy">Strategy</option>
+                  </Select>
+                  {errors.subCategory && (<p className="text-sm text-destructive">{errors.subCategory}</p>)}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="linkedinUrl" className="text-sm font-medium flex items-center gap-2">
-                  <Linkedin className="h-4 w-4" />
-                  LinkedIn Profile
-                </label>
-                <Input
-                  id="linkedinUrl"
-                  type="url"
-                  placeholder="https://linkedin.com/in/yourprofile"
-                  value={formData.linkedinUrl}
-                  onChange={(e) => handleInputChange("linkedinUrl", e.target.value)}
-                  disabled={isLoading}
-                />
+              {/* Experience */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="yearsExperience" className="text-sm font-medium">Years of Experience (Overall) *</label>
+                  <Input id="yearsExperience" type="number" min={0} value={formData.yearsExperience} onChange={(e)=>handleInputChange('yearsExperience', e.target.value)} className={errors.yearsExperience ? 'border-destructive' : ''} />
+                  {errors.yearsExperience && (<p className="text-sm text-destructive">{errors.yearsExperience}</p>)}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="yearsRelevantExperience" className="text-sm font-medium">Years of Relevant Experience *</label>
+                  <Input id="yearsRelevantExperience" type="number" min={0} value={formData.yearsRelevantExperience} onChange={(e)=>handleInputChange('yearsRelevantExperience', e.target.value)} className={errors.yearsRelevantExperience ? 'border-destructive' : ''} />
+                  {errors.yearsRelevantExperience && (<p className="text-sm text-destructive">{errors.yearsRelevantExperience}</p>)}
+                </div>
               </div>
 
+              {/* LinkedIn */}
               <div className="space-y-2">
-                <label htmlFor="bio" className="text-sm font-medium">
-                  Bio
-                </label>
-                <Textarea
-                  id="bio"
-                  placeholder="Tell us about yourself..."
-                  value={formData.bio}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("bio", e.target.value)}
-                  disabled={isLoading}
-                  rows={4}
-                />
+                <label htmlFor="linkedinUrl" className="text-sm font-medium flex items-center gap-2"><Linkedin className="h-4 w-4"/> LinkedIn Profile URL</label>
+                <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/yourprofile" value={formData.linkedinUrl} onChange={(e)=>handleInputChange('linkedinUrl', e.target.value)} className={errors.linkedinUrl ? 'border-destructive' : ''} />
+                {errors.linkedinUrl && (<p className="text-sm text-destructive">{errors.linkedinUrl}</p>)}
               </div>
 
-              {/* Action Buttons */}
+              {/* Detailed Profile + Resume Upload */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="detailedProfileText" className="text-sm font-medium">Detailed Profile</label>
+                  <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload Resume</label>
+                  <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} />
+                  {formData.resumeUrl && (
+                    <p className="text-sm text-muted-foreground">Uploaded: {formData.resumeUrl}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Auto-populated sections */}
+              <div className="space-y-4">
+                {!!formData.experiences?.length && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2"><Building className="h-4 w-4" /> Previous Work Experiences</h4>
+                    <div className="space-y-2">
+                      {formData.experiences.map((exp, idx) => (
+                        <div key={`exp-${idx}`} className="rounded border p-3 text-sm">
+                          <div className="font-medium">{exp.title} @ {exp.company}</div>
+                          <div className="text-muted-foreground">{exp.startDate || ''} {exp.endDate ? `- ${exp.endDate}` : ''}</div>
+                          {exp.description && <div>{exp.description}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!!formData.licenses?.length && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2"><BadgeCheck className="h-4 w-4" /> Licenses / Certifications / Memberships</h4>
+                    <div className="space-y-2">
+                      {formData.licenses.map((lic, idx) => (
+                        <div key={`lic-${idx}`} className="rounded border p-3 text-sm">
+                          <div className="font-medium">{lic.name}</div>
+                          <div className="text-muted-foreground">{lic.issuer || ''} {lic.issueDate ? `• ${lic.issueDate}` : ''}</div>
+                          {lic.credentialId && <div>Credential: {lic.credentialId}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!!formData.awards?.length && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2"><Award className="h-4 w-4" /> Awards / Publications / Talks / Recognitions</h4>
+                    <div className="space-y-2">
+                      {formData.awards.map((aw, idx) => (
+                        <div key={`aw-${idx}`} className="rounded border p-3 text-sm">
+                          <div className="font-medium">{aw.title}</div>
+                          <div className="text-muted-foreground">{aw.date || ''}</div>
+                          {aw.description && <div>{aw.description}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Current Organisation Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="organisationName" className="text-sm font-medium">Organisation Name</label>
+                  <Input id="organisationName" value={formData.organisationName} onChange={(e)=>handleInputChange('organisationName', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="designation" className="text-sm font-medium">Designation</label>
+                  <Input id="designation" value={formData.designation} onChange={(e)=>handleInputChange('designation', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="firmSize" className="text-sm font-medium">Firm Size</label>
+                  <Input id="firmSize" value={formData.firmSize} onChange={(e)=>handleInputChange('firmSize', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="numPartners" className="text-sm font-medium">Number of Partners</label>
+                  <Input id="numPartners" type="number" min={0} value={formData.numPartners} onChange={(e)=>handleInputChange('numPartners', e.target.value)} />
+                </div>
+              </div>
+
+              {/* Why join / Expectations / Anything else */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="whyJoin" className="text-sm font-medium">Why do you want to join the network?</label>
+                  <Textarea id="whyJoin" rows={4} value={formData.whyJoin} onChange={(e)=>handleInputChange('whyJoin', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="expectations" className="text-sm font-medium">What do you expect from this professional network?</label>
+                  <Textarea id="expectations" rows={4} value={formData.expectations} onChange={(e)=>handleInputChange('expectations', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="anythingElse" className="text-sm font-medium">Anything else you want to share?</label>
+                  <Textarea id="anythingElse" rows={4} value={formData.anythingElse} onChange={(e)=>handleInputChange('anythingElse', e.target.value)} />
+                </div>
+              </div>
+
+              {/* Supporting documents upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload supporting documents</label>
+                <input type="file" multiple onChange={handleDocumentsUpload} />
+                {!!formData.documents.length && (
+                  <div className="text-sm text-muted-foreground">Uploaded: {formData.documents.length} file(s)</div>
+                )}
+              </div>
+
+              {/* Accept rules & privacy */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Agreements *</label>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={formData.acceptedRules} onChange={(e)=>handleInputChange('acceptedRules', (e.target as HTMLInputElement).checked)} />
+                  <span className="text-sm">I accept the Rules & Regulations</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={formData.acceptedPrivacy} onChange={(e)=>handleInputChange('acceptedPrivacy', (e.target as HTMLInputElement).checked)} />
+                  <span className="text-sm">I accept the Privacy Policy</span>
+                </div>
+                {(errors.acceptedRules || errors.acceptedPrivacy) && (
+                  <p className="text-sm text-destructive">Please accept both to proceed</p>
+                )}
+              </div>
+
+              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <Button
-                  type="submit"
-                  className="flex-1 bg-black text-white hover:bg-gray-800 font-medium"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving Profile...
-                    </>
-                  ) : (
-                    'Complete Profile'
-                  )}
+                <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
+                  {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</>) : ('Complete Profile')}
                 </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSkip}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  Skip for Now
-                </Button>
+                <Button type="button" variant="outline" onClick={handleSkip} disabled={isLoading} className="flex-1">Skip for Now</Button>
               </div>
             </form>
           </CardContent>

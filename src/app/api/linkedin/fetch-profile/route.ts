@@ -64,7 +64,31 @@ export async function POST(request: NextRequest) {
       jobTitle: linkedinData.jobTitle || linkedinData.headline || linkedinData.position || '',
       location: linkedinData.location || linkedinData.geo || '',
       bio: linkedinData.summary || linkedinData.bio || linkedinData.about || '',
-      linkedinUrl: linkedinData.profileUrl || linkedinData.linkedin_url || linkedinData.url || ''
+      linkedinUrl: linkedinData.profileUrl || linkedinData.linkedin_url || linkedinData.url || '',
+
+      // Extended fields
+      experiences: (linkedinData.experiences || linkedinData.positions || linkedinData.experience || [])?.map((exp: any) => ({
+        title: exp.title || exp.position || '',
+        company: exp.company || exp.companyName || '',
+        startDate: exp.startDate || exp.start || '',
+        endDate: exp.endDate || exp.end || '',
+        description: exp.description || exp.summary || ''
+      })),
+      licenses: (linkedinData.licenses || linkedinData.licensesCertifications || linkedinData.certifications || [])?.map((lic: any) => ({
+        name: lic.name || lic.title || '',
+        issuer: lic.issuer || lic.organization || '',
+        issueDate: lic.issueDate || lic.date || '',
+        credentialId: lic.credentialId || lic.id || ''
+      })),
+      awards: (linkedinData.awards || linkedinData.honorsAwards || linkedinData.publications || [])?.map((aw: any) => ({
+        title: aw.title || aw.name || '',
+        date: aw.date || '',
+        description: aw.description || aw.summary || ''
+      })),
+      organisationName: linkedinData.organisationName || linkedinData.currentCompany || '',
+      designation: linkedinData.designation || linkedinData.jobTitle || linkedinData.headline || '',
+      firmSize: linkedinData.firmSize || '',
+      numPartners: linkedinData.numPartners || 0
     }
 
     return NextResponse.json(profileData)

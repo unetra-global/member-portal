@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { ChevronDown, Search } from "lucide-react"
 
-export type Option = { value: string; label: string; icon?: React.ReactNode }
+export type Option = { value: string; label: string; icon?: React.ReactNode; keywords?: string[] }
 
 interface SearchableSelectProps {
   id?: string
@@ -16,6 +16,8 @@ interface SearchableSelectProps {
   searchPlaceholder?: string
   onChange: (value: string) => void
   disabled?: boolean
+  // Controls how the selected chip displays: label (default) or value (e.g., "+91")
+  displayField?: "label" | "value"
 }
 
 export function SearchableSelect({
@@ -27,6 +29,7 @@ export function SearchableSelect({
   searchPlaceholder = "Search...",
   onChange,
   disabled,
+  displayField = "label",
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -38,7 +41,29 @@ export function SearchableSelect({
   const filtered = React.useMemo(() => {
     if (!query.trim()) return options
     const q = query.toLowerCase()
-    return options.filter(o => o.label.toLowerCase().includes(q))
+    const qAlpha = q.replace(/[^a-z]/gi, "")
+    const qDigits = q.replace(/[^0-9+]/g, "")
+    const isDigitQuery = !!qDigits
+    if (isDigitQuery) {
+      const normalized = qDigits.startsWith("+") ? qDigits : `+${qDigits}`
+      const exact = options.filter(o => {
+        const valueDigits = (o.value || "").replace(/[^0-9+]/g, "")
+        const labelDigits = o.label.match(/\(\+\d+\)/)?.[0] || ""
+        return valueDigits === normalized || labelDigits === `(${normalized})`
+      })
+      if (exact.length > 0) return exact
+      // Fallback to prefix match (avoid broad substring matches)
+      return options.filter(o => {
+        const valueDigits = (o.value || "").replace(/[^0-9+]/g, "")
+        return valueDigits.startsWith(normalized)
+      })
+    }
+    // Alpha query: match label and keywords
+    return options.filter(o => {
+      const inAlphaLabel = o.label.toLowerCase().includes(qAlpha)
+      const inAlphaKeywords = (o.keywords || []).some(k => (k || "").toLowerCase().includes(qAlpha))
+      return inAlphaLabel || inAlphaKeywords
+    })
   }, [options, query])
 
   React.useEffect(() => {
@@ -91,7 +116,7 @@ export function SearchableSelect({
       >
         <span className="flex items-center gap-2">
           {selected?.icon && <span className="text-lg">{selected.icon}</span>}
-          <span className={cn("truncate", !selected && "text-muted-foreground")}>{selected ? selected.label : placeholder}</span>
+          <span className={cn("truncate", !selected && "text-muted-foreground")}>{selected ? (displayField === "value" ? selected.value : selected.label) : placeholder}</span>
         </span>
         <ChevronDown className="h-4 w-4 opacity-70" />
       </button>

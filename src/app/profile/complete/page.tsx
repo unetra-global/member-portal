@@ -148,25 +148,20 @@ export default function CompleteProfilePage() {
     try {
       const csCountries = Country.getAllCountries() || []
       setCountries(csCountries.map((c: any) => ({ name: c.name, isoCode: c.isoCode })))
-    } catch {}
 
-    try {
-      // Build complete list of phone country codes using country-codes-list
-      const nameToDial = countryCodesList?.customList?.('countryNameEn', 'countryCallingCode')
-      const nameToIso2 = countryCodesList?.customList?.('countryNameEn', 'countryCode')
-      if (nameToDial && nameToIso2) {
-        const codes = Object.keys(nameToDial)
-          .map((name: string) => ({
-            code: nameToIso2[name],
-            dial: `+${nameToDial[name]}`,
-            label: `${name} (+${nameToDial[name]})`
-          }))
-          .sort((a: any, b: any) => a.label.localeCompare(b.label))
+      // Prefer phone codes from country-state-city dataset for reliability
+      const codes = csCountries
+        .map((c: any) => ({ code: c.isoCode, dial: c.phonecode ? `+${c.phonecode}` : '', label: c.phonecode ? `${c.name} (+${c.phonecode})` : c.name }))
+        .filter((pc: any) => pc.dial && pc.dial !== '+')
+        .sort((a: any, b: any) => a.label.localeCompare(b.label))
+      if (codes.length) {
         setPhoneCodes(codes)
       } else {
+        // Fallback to bundled minimal list
         setPhoneCodes(fallbackPhoneCodes)
       }
     } catch {
+      // Final fallback
       setPhoneCodes(fallbackPhoneCodes)
     }
   }, [])
@@ -185,7 +180,16 @@ export default function CompleteProfilePage() {
   }
 
   const handleInputChange = (field: keyof ProfileData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    // Special rule: allow only ONE "Present" across current org and experiences
+    if (field === 'currentOrgToDate' && value === 'Present') {
+      setFormData(prev => ({
+        ...prev,
+        currentOrgToDate: 'Present',
+        experiences: (prev.experiences || []).map(exp => exp.endDate === 'Present' ? { ...exp, endDate: '' } : exp),
+      }))
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
@@ -233,10 +237,23 @@ export default function CompleteProfilePage() {
 
   const updateExperienceField = (index: number, field: keyof ExperienceItem, value: any) => {
     const v = field === 'numPartners' ? Number(value || 0) : value
-    setFormData(prev => ({
-      ...prev,
-      experiences: prev.experiences.map((exp, i) => (i === index ? { ...exp, [field]: v } : exp)),
-    }))
+    if (field === 'endDate' && v === 'Present') {
+      setFormData(prev => ({
+        ...prev,
+        // set only the targeted experience to Present and clear others
+        experiences: prev.experiences.map((exp, i) => {
+          if (i === index) return { ...exp, endDate: 'Present' }
+          return exp.endDate === 'Present' ? { ...exp, endDate: '' } : exp
+        }),
+        // clear current org 'Present' if any
+        currentOrgToDate: prev.currentOrgToDate === 'Present' ? '' : prev.currentOrgToDate,
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        experiences: prev.experiences.map((exp, i) => (i === index ? { ...exp, [field]: v } : exp)),
+      }))
+    }
   }
 
   const removeExperienceRow = (index: number) => {
@@ -517,7 +534,7 @@ export default function CompleteProfilePage() {
               </div>
 
               {/* Communications */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/60 rounded-lg p-4">
                 <div className="space-y-2">
                   <label htmlFor="emailComm" className="text-sm font-medium">Email for Communications *</label>
                   <Input id="emailComm" type="email" placeholder="you@example.com" value={formData.emailComm} onChange={(e)=>handleInputChange('emailComm', e.target.value)} className={errors.emailComm ? 'border-destructive' : ''} />
@@ -529,8 +546,15 @@ export default function CompleteProfilePage() {
                     <SearchableSelect
                       id="whatsappCountryCode"
                       value={formData.whatsappCountryCode || ''}
-                      options={phoneCodes.map(pc => ({ value: pc.dial, label: pc.label, icon: <span className="text-lg">{codeToFlagEmoji(pc.code)}</span> }))}
+                      options={phoneCodes.map(pc => ({
+                        value: pc.dial,
+                        label: pc.label,
+                        icon: <span className="text-lg">{codeToFlagEmoji(pc.code)}</span>,
+                        keywords: [pc.dial, pc.dial.replace('+',''), pc.code, pc.label.split(' (+')[0]]
+                      }))}
                       placeholder="Country code"
+                      searchPlaceholder="Search by country or code..."
+                      displayField="value"
                       onChange={(val)=>handleInputChange('whatsappCountryCode', val)}
                     />
                     <div className="col-span-2">
@@ -542,7 +566,7 @@ export default function CompleteProfilePage() {
               </div>
 
               {/* Location of Work - order: country, state, city, address with dependent dropdowns */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/60 rounded-lg p-4">
                 <div className="space-y-2">
                   <label htmlFor="country" className="text-sm font-medium">Country *</label>
                   <SearchableSelect
@@ -583,7 +607,7 @@ export default function CompleteProfilePage() {
               </div>
 
               {/* Category & Sub-Category with linkage and multi-select */}
-              <div className="space-y-4">
+              <div className="space-y-4 bg-blue-50/60 rounded-lg p-4">
                 <div className="space-y-2">
                   <label htmlFor="category" className="text-sm font-medium">Category of Registration *</label>
                   <SearchableSelect
@@ -617,18 +641,20 @@ export default function CompleteProfilePage() {
                     {!!selectedSubCategories.length && (
                       <div className="space-y-2">
                         {selectedSubCategories.map((sc, idx) => (
-                          <div key={`${sc.name}-${idx}`} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center border rounded p-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm">{sc.name}</span>
-                              <Button type="button" variant="outline" size="sm" onClick={()=>setSelectedSubCategories(selectedSubCategories.filter(s => s.name !== sc.name))}>Remove</Button>
+                          <div key={`${sc.name}-${idx}`} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center border border-blue-100 bg-white rounded p-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-blue-700">{sc.name}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <label className="text-xs">Relevant Years</label>
+                              <label className="text-xs text-muted-foreground">Relevant Years</label>
                               <Input type="number" min={0} value={sc.years} onChange={(e)=>setSubCategoryYears(sc.name, e.target.value)} />
                             </div>
                             <div className="flex items-center gap-2">
-                              <label className="text-xs">Mandatory</label>
+                              <label className="text-xs text-muted-foreground">Mandatory</label>
                               <input type="radio" name="mandatory-subcategory" checked={sc.mandatory} onChange={()=>setMandatorySubCategory(sc.name)} />
+                            </div>
+                            <div className="flex items-center justify-end">
+                              <Button type="button" variant="outline" size="sm" onClick={()=>setSelectedSubCategories(selectedSubCategories.filter(s => s.name !== sc.name))}>Remove</Button>
                             </div>
                           </div>
                         ))}
@@ -721,7 +747,7 @@ export default function CompleteProfilePage() {
 
               {/* Current Organization Details */}
               <h3 className="text-base font-medium">Current Organization Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/60 rounded-lg p-4">
                 <div className="space-y-2">
                   <label htmlFor="organisationName" className="text-sm font-medium">Organisation Name</label>
                   <Input id="organisationName" value={formData.organisationName} onChange={(e)=>handleInputChange('organisationName', e.target.value)} />
@@ -744,15 +770,18 @@ export default function CompleteProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="currentOrgToDate" className="text-sm font-medium">To date</label>
-                  <Input id="currentOrgToDate" type="date" value={formData.currentOrgToDate} onChange={(e)=>handleInputChange('currentOrgToDate', e.target.value)} />
+                  <div className="flex items-center gap-2">
+                    <Input id="currentOrgToDate" type="date" value={formData.currentOrgToDate === 'Present' ? '' : (formData.currentOrgToDate || '')} onChange={(e)=>handleInputChange('currentOrgToDate', e.target.value)} disabled={formData.currentOrgToDate === 'Present'} />
+                    <Button type="button" size="sm" variant={formData.currentOrgToDate === 'Present' ? 'secondary' : 'outline'} onClick={()=>handleInputChange('currentOrgToDate', formData.currentOrgToDate === 'Present' ? '' : 'Present')}>Present</Button>
+                  </div>
                 </div>
               </div>
 
               {/* Previous Organization Details (expandable) */}
               <div className="space-y-2">
                 <details>
-                  <summary className="cursor-pointer select-none p-3 rounded bg-muted text-sm font-medium">Previous organization details</summary>
-                  <div className="mt-3 space-y-3">
+                  <summary className="cursor-pointer select-none p-3 rounded bg-violet-100 text-sm font-medium">Previous organization details</summary>
+                  <div className="mt-3 space-y-3 rounded-lg border border-violet-200 bg-violet-50 p-4">
                     <div>
                       <Button type="button" variant="secondary" onClick={addExperienceRow}>Add new row</Button>
                     </div>
@@ -761,7 +790,7 @@ export default function CompleteProfilePage() {
                       const bd = b.startDate ? new Date(b.startDate).getTime() : 0
                       return ad - bd
                     })).map((exp, idx) => (
-                      <div key={`prev-exp-${idx}`} className="rounded border p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div key={`prev-exp-${idx}`} className="rounded-lg border border-violet-200 bg-white p-3 grid grid-cols-1 md:grid-cols-2 gap-4 shadow-sm border-l-4 border-l-violet-400">
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Organisation Name</label>
                           <Input value={exp.company} onChange={(e)=>updateExperienceField(idx, 'company', e.target.value)} />
@@ -778,6 +807,8 @@ export default function CompleteProfilePage() {
                           <label className="text-sm font-medium">Number of Partners</label>
                           <Input type="number" min={0} value={exp.numPartners?.toString() || ''} onChange={(e)=>updateExperienceField(idx, 'numPartners', e.target.value)} />
                         </div>
+                        {/* Partition line before dates */}
+                        <div className="md:col-span-2 h-px bg-violet-200" />
                         <div className="space-y-2">
                           <label className="text-sm font-medium">From date</label>
                           <Input type="date" value={exp.startDate || ''} onChange={(e)=>updateExperienceField(idx, 'startDate', e.target.value)} />
@@ -786,12 +817,11 @@ export default function CompleteProfilePage() {
                           <label className="text-sm font-medium">To date</label>
                           <div className="flex items-center gap-2">
                             <Input type="date" value={exp.endDate === 'Present' ? '' : (exp.endDate || '')} onChange={(e)=>updateExperienceField(idx, 'endDate', e.target.value)} disabled={exp.endDate === 'Present'} />
-                            <label className="flex items-center gap-1 text-xs">
-                              <Checkbox checked={exp.endDate === 'Present'} onChange={(e)=>updateExperienceField(idx, 'endDate', (e.target as HTMLInputElement).checked ? 'Present' : '')} />
-                              Present
-                            </label>
+                            <Button type="button" size="sm" variant={exp.endDate === 'Present' ? 'secondary' : 'outline'} onClick={()=>updateExperienceField(idx, 'endDate', exp.endDate === 'Present' ? '' : 'Present')}>Present</Button>
                           </div>
                         </div>
+                        {/* Partition line before actions */}
+                        <div className="md:col-span-2 h-px bg-violet-200" />
                         <div>
                           <Button type="button" variant="outline" onClick={()=>removeExperienceRow(idx)}>Remove row</Button>
                         </div>

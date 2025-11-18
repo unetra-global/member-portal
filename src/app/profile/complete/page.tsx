@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { SearchableSelect, type Option } from "@/components/ui/searchable-select"
 import { LoadingPage } from "@/components/ui/loading"
 import { Loader2, User, Building, MapPin, Phone, Globe, Linkedin, FileText, Award, BadgeCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -18,13 +19,15 @@ import { fallbackPhoneCodes } from "@/lib/data/phoneCodes"
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const countryCodesList: any = require("country-codes-list")
 
-interface ExperienceItem {
-  title: string
-  company: string
-  startDate?: string
-  endDate?: string
-  description?: string
-}
+ interface ExperienceItem {
+   title: string
+   company: string
+   startDate?: string
+   endDate?: string
+   description?: string
+   firmSize?: string
+   numPartners?: number
+ }
 
 interface LicenseItem {
   name: string
@@ -39,7 +42,7 @@ interface AwardItem {
   description?: string
 }
 
-interface ProfileData {
+  interface ProfileData {
   firstName: string
   lastName: string
   emailComm: string
@@ -63,14 +66,16 @@ interface ProfileData {
   organisationName: string
   designation: string
   firmSize: string
-  numPartners: string
-  whyJoin: string
-  expectations: string
-  anythingElse: string
-  documents: string[]
-  acceptedRules: boolean
-  acceptedPrivacy: boolean
-}
+    numPartners: string
+    currentOrgFromDate?: string
+    currentOrgToDate?: string
+    whyJoin: string
+    expectations: string
+    anythingElse: string
+    documents: string[]
+    acceptedRules: boolean
+    acceptedPrivacy: boolean
+  }
 
 export default function CompleteProfilePage() {
   const { user, loading } = useAuth()
@@ -102,6 +107,8 @@ export default function CompleteProfilePage() {
     designation: "",
     firmSize: "",
     numPartners: "",
+    currentOrgFromDate: "",
+    currentOrgToDate: "",
     whyJoin: "",
     expectations: "",
     anythingElse: "",
@@ -121,6 +128,7 @@ export default function CompleteProfilePage() {
 
   // Phone codes
   const [phoneCodes, setPhoneCodes] = useState<Array<{ code: string; dial: string; label: string }>>([])
+  const [isLinkedInConsent, setIsLinkedInConsent] = useState<boolean>(false)
 
   // Subcategory selection
   const [selectedSubCategories, setSelectedSubCategories] = useState<Array<{ name: string; years: string; mandatory: boolean }>>([])
@@ -163,6 +171,19 @@ export default function CompleteProfilePage() {
     }
   }, [])
 
+  // Helper: convert ISO country code to emoji flag
+  const codeToFlagEmoji = (iso2?: string) => {
+    if (!iso2) return ""
+    const code = iso2.toUpperCase()
+    if (code.length !== 2) return ""
+    const points = Array.from(code).map(c => 127397 + c.charCodeAt(0))
+    try {
+      return String.fromCodePoint(...points)
+    } catch {
+      return ""
+    }
+  }
+
   const handleInputChange = (field: keyof ProfileData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
@@ -197,6 +218,32 @@ export default function CompleteProfilePage() {
       setCities(csCities.map((c: any) => ({ name: c.name })))
       handleInputChange('city', '')
     } catch {}
+  }
+
+  // Experiences controls (Previous organization details)
+  const addExperienceRow = () => {
+    setFormData(prev => ({
+      ...prev,
+      experiences: [
+        ...(prev.experiences || []),
+        { title: "", company: "", startDate: "", endDate: "", description: "" },
+      ],
+    }))
+  }
+
+  const updateExperienceField = (index: number, field: keyof ExperienceItem, value: any) => {
+    const v = field === 'numPartners' ? Number(value || 0) : value
+    setFormData(prev => ({
+      ...prev,
+      experiences: prev.experiences.map((exp, i) => (i === index ? { ...exp, [field]: v } : exp)),
+    }))
+  }
+
+  const removeExperienceRow = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      experiences: prev.experiences.filter((_, i) => i !== index),
+    }))
   }
 
   const handleCitySelect = (value: string) => {
@@ -408,22 +455,36 @@ export default function CompleteProfilePage() {
           
           <CardContent className="space-y-6">
             {/* LinkedIn Auto-fill Section */}
-            <div className="p-4 rounded-lg" style={{ backgroundColor: '#0966c2' }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Linkedin className="h-5 w-5 text-white" />
-                  <div>
-                    <h3 className="font-medium text-white">
-                      Auto-fill from LinkedIn
-                    </h3>
-                    <p className="text-sm text-blue-100">
-                      We can fetch your professional information from LinkedIn
-                    </p>
-                  </div>
+            <div className="p-4 rounded-lg space-y-3" style={{ backgroundColor: '#0966c2' }}>
+              <div className="flex items-center gap-3">
+                <Linkedin className="h-5 w-5 text-white" />
+                <div>
+                  <h3 className="font-medium text-white">Auto-fill from LinkedIn</h3>
+                  <p className="text-sm text-blue-100">We can fetch your professional information from LinkedIn</p>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Input
+                  id="linkedinUrl"
+                  type="url"
+                  placeholder="https://linkedin.com/in/yourprofile"
+                  value={formData.linkedinUrl}
+                  onChange={(e)=>handleInputChange('linkedinUrl', e.target.value)}
+                  className={errors.linkedinUrl ? 'border-destructive' : ''}
+                />
+                {errors.linkedinUrl && (<p className="text-sm text-white/80">{errors.linkedinUrl}</p>)}
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={isLinkedInConsent}
+                  onChange={(e)=>setIsLinkedInConsent((e.target as HTMLInputElement).checked)}
+                />
+                <span className="text-sm text-white">By selecting this, all your data in LinkedIn will be auto filled here.</span>
+              </div>
+              <div>
                 <Button
                   onClick={handleLinkedInAutoFill}
-                  disabled={isLinkedInLoading}
+                  disabled={isLinkedInLoading || !isLinkedInConsent || !formData.linkedinUrl}
                   variant="outline"
                   size="sm"
                   className="border-white text-white hover:bg-white hover:text-[#0966c2] bg-transparent"
@@ -438,13 +499,6 @@ export default function CompleteProfilePage() {
                   )}
                 </Button>
               </div>
-            </div>
-
-            {/* LinkedIn - placed first field below tile */}
-            <div className="space-y-2">
-              <label htmlFor="linkedinUrl" className="text-sm font-medium flex items-center gap-2"><Linkedin className="h-4 w-4"/> LinkedIn Profile URL</label>
-              <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/yourprofile" value={formData.linkedinUrl} onChange={(e)=>handleInputChange('linkedinUrl', e.target.value)} className={errors.linkedinUrl ? 'border-destructive' : ''} />
-              {errors.linkedinUrl && (<p className="text-sm text-destructive">{errors.linkedinUrl}</p>)}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -472,12 +526,13 @@ export default function CompleteProfilePage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2"><Phone className="h-4 w-4"/> WhatsApp Number *</label>
                   <div className="grid grid-cols-3 gap-2">
-                    <Select id="whatsappCountryCode" value={formData.whatsappCountryCode} onChange={(e)=>handleInputChange('whatsappCountryCode', (e.target as HTMLSelectElement).value)}>
-                      <option value="">Pin Code</option>
-                      {phoneCodes.map(pc => (
-                        <option key={pc.code} value={pc.dial}>{pc.label}</option>
-                      ))}
-                    </Select>
+                    <SearchableSelect
+                      id="whatsappCountryCode"
+                      value={formData.whatsappCountryCode || ''}
+                      options={phoneCodes.map(pc => ({ value: pc.dial, label: pc.label, icon: <span className="text-lg">{codeToFlagEmoji(pc.code)}</span> }))}
+                      placeholder="Country code"
+                      onChange={(val)=>handleInputChange('whatsappCountryCode', val)}
+                    />
                     <div className="col-span-2">
                       <Input id="phoneWhatsapp" type="tel" placeholder="Phone number" value={formData.phoneWhatsapp} onChange={(e)=>handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
                     </div>
@@ -490,26 +545,35 @@ export default function CompleteProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="country" className="text-sm font-medium">Country *</label>
-                  <Select id="country" value={selectedCountryCode} onChange={(e)=>handleCountrySelect((e.target as HTMLSelectElement).value)} className={errors.country ? 'border-destructive' : ''}>
-                    <option value="">Select a country</option>
-                    {countries.map(c => (<option key={c.isoCode} value={c.isoCode}>{c.name}</option>))}
-                  </Select>
+                  <SearchableSelect
+                    id="country"
+                    value={selectedCountryCode || ''}
+                    options={countries.map(c => ({ value: c.isoCode, label: c.name, icon: <span className="text-lg">{codeToFlagEmoji(c.isoCode)}</span> }))}
+                    placeholder="Select a country"
+                    onChange={(val)=>handleCountrySelect(val)}
+                  />
                   {errors.country && (<p className="text-sm text-destructive">{errors.country}</p>)}
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="state" className="text-sm font-medium">State *</label>
-                  <Select id="state" value={selectedStateCode} onChange={(e)=>handleStateSelect((e.target as HTMLSelectElement).value)} className={errors.state ? 'border-destructive' : ''}>
-                    <option value="">Select a state</option>
-                    {states.map(s => (<option key={s.isoCode} value={s.isoCode}>{s.name}</option>))}
-                  </Select>
+                  <SearchableSelect
+                    id="state"
+                    value={selectedStateCode || ''}
+                    options={states.map(s => ({ value: s.isoCode, label: s.name }))}
+                    placeholder="Select a state"
+                    onChange={(val)=>handleStateSelect(val)}
+                  />
                   {errors.state && (<p className="text-sm text-destructive">{errors.state}</p>)}
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="city" className="text-sm font-medium">City *</label>
-                  <Select id="city" value={formData.city} onChange={(e)=>handleCitySelect((e.target as HTMLSelectElement).value)} className={errors.city ? 'border-destructive' : ''}>
-                    <option value="">Select a city</option>
-                    {cities.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
-                  </Select>
+                  <SearchableSelect
+                    id="city"
+                    value={formData.city || ''}
+                    options={cities.map(c => ({ value: c.name, label: c.name }))}
+                    placeholder="Select a city"
+                    onChange={(val)=>handleCitySelect(val)}
+                  />
                   {errors.city && (<p className="text-sm text-destructive">{errors.city}</p>)}
                 </div>
                 <div className="space-y-2">
@@ -522,54 +586,54 @@ export default function CompleteProfilePage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="category" className="text-sm font-medium">Category of Registration *</label>
-                  <Select id="category" value={formData.category} onChange={(e)=>{
-                    const value = (e.target as HTMLSelectElement).value
-                    handleInputChange('category', value)
-                    setSelectedSubCategories([])
-                  }} className={errors.category ? 'border-destructive' : ''}>
-                    <option value="">Select a category</option>
-                    {Object.keys(categories).map(cat => (<option key={cat} value={cat}>{cat}</option>))}
-                  </Select>
+                  <SearchableSelect
+                    id="category"
+                    value={formData.category || ''}
+                    options={Object.keys(categories).map(cat => ({ value: cat, label: cat }))}
+                    placeholder="Select a category"
+                    onChange={(val)=>{ handleInputChange('category', val); setSelectedSubCategories([]) }}
+                  />
                   {errors.category && (<p className="text-sm text-destructive">{errors.category}</p>)}
                 </div>
-
                 {!!availableSubCategories.length && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-sm font-medium">Select up to 3 sub-categories (1 mandatory)</label>
                       <span className="text-xs text-muted-foreground">Selected: {selectedSubCategories.length}/3</span>
                     </div>
-                    <div className="space-y-2">
-                      {availableSubCategories.map(sc => {
-                        const isSelected = selectedSubCategories.some(s => s.name === sc.name)
-                        return (
-                          <div key={sc.name} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center border rounded p-2">
-                            <div className="flex items-center gap-2">
-                              <Checkbox checked={isSelected} onChange={() => toggleSubCategory(sc.name)} />
+                    <SearchableSelect
+                      id="subCategory"
+                      value=""
+                      options={availableSubCategories.map(sc => ({ value: sc.name, label: sc.name }))}
+                      placeholder="Select a sub-category"
+                      onChange={(val)=>{
+                        if (!val) return
+                        const exists = selectedSubCategories.find(sc => sc.name === val)
+                        if (exists) return
+                        if (selectedSubCategories.length >= 3) return
+                        setSelectedSubCategories([...selectedSubCategories, { name: val, years: '', mandatory: selectedSubCategories.length === 0 }])
+                      }}
+                    />
+                    {!!selectedSubCategories.length && (
+                      <div className="space-y-2">
+                        {selectedSubCategories.map((sc, idx) => (
+                          <div key={`${sc.name}-${idx}`} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center border rounded p-2">
+                            <div className="flex items-center justify-between gap-2">
                               <span className="text-sm">{sc.name}</span>
+                              <Button type="button" variant="outline" size="sm" onClick={()=>setSelectedSubCategories(selectedSubCategories.filter(s => s.name !== sc.name))}>Remove</Button>
                             </div>
                             <div className="flex items-center gap-2">
                               <label className="text-xs">Relevant Years</label>
-                              <Input
-                                type="number"
-                                min={0}
-                                value={selectedSubCategories.find(s => s.name === sc.name)?.years || ''}
-                                onChange={(e)=>setSubCategoryYears(sc.name, e.target.value)}
-                              />
+                              <Input type="number" min={0} value={sc.years} onChange={(e)=>setSubCategoryYears(sc.name, e.target.value)} />
                             </div>
                             <div className="flex items-center gap-2">
                               <label className="text-xs">Mandatory</label>
-                              <input
-                                type="radio"
-                                name="mandatory-subcategory"
-                                checked={selectedSubCategories.find(s => s.name === sc.name)?.mandatory || false}
-                                onChange={()=>setMandatorySubCategory(sc.name)}
-                              />
+                              <input type="radio" name="mandatory-subcategory" checked={sc.mandatory} onChange={()=>setMandatorySubCategory(sc.name)} />
                             </div>
                           </div>
-                        )
-                      })}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -586,24 +650,24 @@ export default function CompleteProfilePage() {
 
               
 
-              {/* Detailed Profile + Resume Upload (custom button) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="detailedProfileText" className="text-sm font-medium">Detailed Profile</label>
-                  <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload Resume</label>
-                  <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} />
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="secondary" onClick={triggerResumePicker}>Upload Resume</Button>
-                    {formData.resumeUrl && (
-                      <>
-                        <span className="text-sm truncate max-w-[200px]">Uploaded</span>
-                        <Button type="button" variant="outline" onClick={handleRemoveResume}>Remove</Button>
-                      </>
-                    )}
-                  </div>
+              {/* Detailed Profile */}
+              <div className="space-y-2">
+                <label htmlFor="detailedProfileText" className="text-sm font-medium">Detailed Profile</label>
+                <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} />
+              </div>
+
+              {/* Upload Resume on new line */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload Resume</label>
+                <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} />
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="secondary" onClick={triggerResumePicker}>Upload Resume</Button>
+                  {formData.resumeUrl && (
+                    <>
+                      <span className="text-sm truncate max-w-[200px]">Uploaded</span>
+                      <Button type="button" variant="outline" onClick={handleRemoveResume}>Remove</Button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -655,7 +719,8 @@ export default function CompleteProfilePage() {
                 )}
               </div>
 
-              {/* Current Organisation Details */}
+              {/* Current Organization Details */}
+              <h3 className="text-base font-medium">Current Organization Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="organisationName" className="text-sm font-medium">Organisation Name</label>
@@ -673,6 +738,67 @@ export default function CompleteProfilePage() {
                   <label htmlFor="numPartners" className="text-sm font-medium">Number of Partners</label>
                   <Input id="numPartners" type="number" min={0} value={formData.numPartners} onChange={(e)=>handleInputChange('numPartners', e.target.value)} />
                 </div>
+                <div className="space-y-2">
+                  <label htmlFor="currentOrgFromDate" className="text-sm font-medium">From date</label>
+                  <Input id="currentOrgFromDate" type="date" value={formData.currentOrgFromDate} onChange={(e)=>handleInputChange('currentOrgFromDate', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="currentOrgToDate" className="text-sm font-medium">To date</label>
+                  <Input id="currentOrgToDate" type="date" value={formData.currentOrgToDate} onChange={(e)=>handleInputChange('currentOrgToDate', e.target.value)} />
+                </div>
+              </div>
+
+              {/* Previous Organization Details (expandable) */}
+              <div className="space-y-2">
+                <details>
+                  <summary className="cursor-pointer select-none p-3 rounded bg-muted text-sm font-medium">Previous organization details</summary>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <Button type="button" variant="secondary" onClick={addExperienceRow}>Add new row</Button>
+                    </div>
+                    {([...formData.experiences].sort((a, b) => {
+                      const ad = a.startDate ? new Date(a.startDate).getTime() : 0
+                      const bd = b.startDate ? new Date(b.startDate).getTime() : 0
+                      return ad - bd
+                    })).map((exp, idx) => (
+                      <div key={`prev-exp-${idx}`} className="rounded border p-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Organisation Name</label>
+                          <Input value={exp.company} onChange={(e)=>updateExperienceField(idx, 'company', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Designation</label>
+                          <Input value={exp.title} onChange={(e)=>updateExperienceField(idx, 'title', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Firm Size</label>
+                          <Input value={exp.firmSize || ''} onChange={(e)=>updateExperienceField(idx, 'firmSize', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Number of Partners</label>
+                          <Input type="number" min={0} value={exp.numPartners?.toString() || ''} onChange={(e)=>updateExperienceField(idx, 'numPartners', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">From date</label>
+                          <Input type="date" value={exp.startDate || ''} onChange={(e)=>updateExperienceField(idx, 'startDate', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">To date</label>
+                          <div className="flex items-center gap-2">
+                            <Input type="date" value={exp.endDate === 'Present' ? '' : (exp.endDate || '')} onChange={(e)=>updateExperienceField(idx, 'endDate', e.target.value)} disabled={exp.endDate === 'Present'} />
+                            <label className="flex items-center gap-1 text-xs">
+                              <Checkbox checked={exp.endDate === 'Present'} onChange={(e)=>updateExperienceField(idx, 'endDate', (e.target as HTMLInputElement).checked ? 'Present' : '')} />
+                              Present
+                            </label>
+                          </div>
+                        </div>
+                        <div>
+                          <Button type="button" variant="outline" onClick={()=>removeExperienceRow(idx)}>Remove row</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
 
               {/* Why join / Expectations / Anything else */}

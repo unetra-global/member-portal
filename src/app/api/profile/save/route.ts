@@ -15,9 +15,10 @@ export async function POST(request: NextRequest) {
       'state',
       'country',
       'category',
-      'subCategory',
+      // subCategories is a list of selected subcategories with metadata
+      'subCategories',
       'yearsExperience',
-      'yearsRelevantExperience',
+      // 'yearsRelevantExperience' is optional and no longer required
       'acceptedRules',
       'acceptedPrivacy'
     ]
@@ -50,18 +51,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate subCategories constraints: 1 mandatory + up to 2 optional (max 3 total)
+    const subCategories = Array.isArray(profileData.subCategories) ? profileData.subCategories : []
+    const mandatoryCount = subCategories.filter((sc: any) => !!sc.mandatory).length
+    if (subCategories.length < 1 || subCategories.length > 3 || mandatoryCount < 1) {
+      return NextResponse.json(
+        { error: 'Select 1-3 subcategories with at least 1 mandatory' },
+        { status: 400 }
+      )
+    }
+
+    // Compose WhatsApp phone with country code if provided
+    const phoneWhatsapp = profileData.whatsappCountryCode
+      ? `${profileData.whatsappCountryCode}${profileData.phoneWhatsapp}`
+      : profileData.phoneWhatsapp
+
     // Upsert into user_profiles table
     const upsertPayload = {
       user_id: user.id,
       full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
       email_comm: profileData.emailComm,
-      phone_whatsapp: profileData.phoneWhatsapp,
+      phone_whatsapp: phoneWhatsapp,
       address: profileData.address || '',
       city: profileData.city,
       state: profileData.state,
       country: profileData.country,
       category: profileData.category,
-      sub_category: profileData.subCategory,
+      // For backward compatibility, store the mandatory subcategory name in sub_category
+      sub_category:
+        (subCategories.find((sc: any) => !!sc.mandatory)?.name || subCategories[0]?.name || ''),
+      // Store full selection with per-subcategory years in JSONB
+      sub_categories: subCategories,
       years_experience: Number(profileData.yearsExperience) || 0,
       years_relevant_experience: Number(profileData.yearsRelevantExperience) || 0,
       linkedin_url: profileData.linkedinUrl || '',

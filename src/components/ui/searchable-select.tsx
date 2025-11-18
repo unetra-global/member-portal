@@ -11,7 +11,7 @@ interface SearchableSelectProps {
   id?: string
   className?: string
   options: Option[]
-  value: string
+  value: string // test
   placeholder?: string
   searchPlaceholder?: string
   onChange: (value: string) => void

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { LoadingPage } from "@/components/ui/loading"
 import { Loader2, User, Building, MapPin, Phone, Globe, Linkedin, FileText, Award, BadgeCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { Country, State, City } from "country-state-city"
+import { categories } from "@/lib/data/categories"
+import { fallbackPhoneCodes } from "@/lib/data/phoneCodes"
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const countryCodesList: any = require("country-codes-list")
 
 interface ExperienceItem {
   title: string
@@ -39,12 +44,14 @@ interface ProfileData {
   lastName: string
   emailComm: string
   phoneWhatsapp: string
+  whatsappCountryCode?: string
   address: string
   city: string
   state: string
   country: string
   category: string
   subCategory: string
+  subCategories?: { name: string; years: string; mandatory: boolean }[]
   yearsExperience: string
   yearsRelevantExperience: string
   linkedinUrl: string
@@ -75,12 +82,14 @@ export default function CompleteProfilePage() {
     lastName: "",
     emailComm: "",
     phoneWhatsapp: "",
+    whatsappCountryCode: "",
     address: "",
     city: "",
     state: "",
     country: "",
     category: "",
     subCategory: "",
+    subCategories: [],
     yearsExperience: "",
     yearsRelevantExperience: "",
     linkedinUrl: "",
@@ -103,11 +112,56 @@ export default function CompleteProfilePage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const supabase = createClient()
 
+  // Location dropdown data
+  const [countries, setCountries] = useState<Array<{ name: string; isoCode: string }>>([])
+  const [states, setStates] = useState<Array<{ name: string; isoCode: string }>>([])
+  const [cities, setCities] = useState<Array<{ name: string }>>([])
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>("")
+  const [selectedStateCode, setSelectedStateCode] = useState<string>("")
+
+  // Phone codes
+  const [phoneCodes, setPhoneCodes] = useState<Array<{ code: string; dial: string; label: string }>>([])
+
+  // Subcategory selection
+  const [selectedSubCategories, setSelectedSubCategories] = useState<Array<{ name: string; years: string; mandatory: boolean }>>([])
+
+  // File inputs refs for custom buttons
+  const resumeInputRef = useRef<HTMLInputElement>(null)
+  const docsInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
     }
   }, [user, loading, router])
+
+  // Initialize countries and phone codes
+  useEffect(() => {
+    try {
+      const csCountries = Country.getAllCountries() || []
+      setCountries(csCountries.map((c: any) => ({ name: c.name, isoCode: c.isoCode })))
+    } catch {}
+
+    try {
+      // Build complete list of phone country codes using country-codes-list
+      const nameToDial = countryCodesList?.customList?.('countryNameEn', 'countryCallingCode')
+      const nameToIso2 = countryCodesList?.customList?.('countryNameEn', 'countryCode')
+      if (nameToDial && nameToIso2) {
+        const codes = Object.keys(nameToDial)
+          .map((name: string) => ({
+            code: nameToIso2[name],
+            dial: `+${nameToDial[name]}`,
+            label: `${name} (+${nameToDial[name]})`
+          }))
+          .sort((a: any, b: any) => a.label.localeCompare(b.label))
+        setPhoneCodes(codes)
+      } else {
+        setPhoneCodes(fallbackPhoneCodes)
+      }
+    } catch {
+      setPhoneCodes(fallbackPhoneCodes)
+    }
+  }, [])
 
   const handleInputChange = (field: keyof ProfileData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -115,6 +169,71 @@ export default function CompleteProfilePage() {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
     }
+  }
+
+  // Country/State/City handlers
+  const handleCountrySelect = (value: string) => {
+    const country = countries.find(c => c.isoCode === value)
+    setSelectedCountryCode(value)
+    handleInputChange('country', country?.name || '')
+    // Load states
+    try {
+      const csStates = State.getStatesOfCountry(value) || []
+      setStates(csStates.map((s: any) => ({ name: s.name, isoCode: s.isoCode })))
+      setSelectedStateCode("")
+      setCities([])
+      handleInputChange('state', '')
+      handleInputChange('city', '')
+    } catch {}
+  }
+
+  const handleStateSelect = (value: string) => {
+    const state = states.find(s => s.isoCode === value)
+    setSelectedStateCode(value)
+    handleInputChange('state', state?.name || '')
+    // Load cities
+    try {
+      const csCities = City.getCitiesOfState(selectedCountryCode, value) || []
+      setCities(csCities.map((c: any) => ({ name: c.name })))
+      handleInputChange('city', '')
+    } catch {}
+  }
+
+  const handleCitySelect = (value: string) => {
+    handleInputChange('city', value)
+  }
+
+  // Subcategory selection logic
+  const availableSubCategories = useMemo(() => {
+    return categories[formData.category] || []
+  }, [formData.category])
+
+  const toggleSubCategory = (name: string) => {
+    const exists = selectedSubCategories.find(sc => sc.name === name)
+    if (exists) {
+      const updated = selectedSubCategories.filter(sc => sc.name !== name)
+      setSelectedSubCategories(updated)
+    } else {
+      if (selectedSubCategories.length >= 3) return // limit 3
+      setSelectedSubCategories([...selectedSubCategories, { name, years: '', mandatory: selectedSubCategories.length === 0 }])
+    }
+  }
+
+  const setSubCategoryYears = (name: string, years: string) => {
+    setSelectedSubCategories(prev => prev.map(sc => sc.name === name ? { ...sc, years } : sc))
+  }
+
+  const setMandatorySubCategory = (name: string) => {
+    setSelectedSubCategories(prev => prev.map(sc => ({ ...sc, mandatory: sc.name === name })))
+  }
+
+  // Resume/documents custom UI handlers
+  const triggerResumePicker = () => resumeInputRef.current?.click()
+  const triggerDocsPicker = () => docsInputRef.current?.click()
+  const handleRemoveResume = () => handleInputChange('resumeUrl', '')
+  const handleRemoveDocument = (url: string) => {
+    const next = (formData.documents || []).filter((u) => u !== url)
+    handleInputChange('documents', next)
   }
 
   const handleLinkedInAutoFill = async () => {
@@ -169,9 +288,9 @@ export default function CompleteProfilePage() {
     if (!formData.state.trim()) newErrors.state = "State is required"
     if (!formData.country.trim()) newErrors.country = "Country is required"
     if (!formData.category.trim()) newErrors.category = "Category is required"
-    if (!formData.subCategory.trim()) newErrors.subCategory = "Sub-category is required"
+    if (!selectedSubCategories.length) newErrors.category = "Select at least one sub-category"
     if (!formData.yearsExperience.trim()) newErrors.yearsExperience = "Years of experience is required"
-    if (!formData.yearsRelevantExperience.trim()) newErrors.yearsRelevantExperience = "Years of relevant experience is required"
+    // Years of Relevant Experience no longer required
     if (!formData.linkedinUrl && !formData.detailedProfileText && !formData.resumeUrl) {
       newErrors.linkedinUrl = "Provide LinkedIn profile or detailed profile or resume"
     }
@@ -197,6 +316,7 @@ export default function CompleteProfilePage() {
         },
         body: JSON.stringify({
           ...formData,
+          subCategories: selectedSubCategories.map(sc => ({ name: sc.name, years: Number(sc.years || 0), mandatory: !!sc.mandatory })),
           yearsExperience: Number(formData.yearsExperience || 0),
           yearsRelevantExperience: Number(formData.yearsRelevantExperience || 0),
           numPartners: Number(formData.numPartners || 0),
@@ -320,17 +440,24 @@ export default function CompleteProfilePage() {
               </div>
             </div>
 
+            {/* LinkedIn - placed first field below tile */}
+            <div className="space-y-2">
+              <label htmlFor="linkedinUrl" className="text-sm font-medium flex items-center gap-2"><Linkedin className="h-4 w-4"/> LinkedIn Profile URL</label>
+              <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/yourprofile" value={formData.linkedinUrl} onChange={(e)=>handleInputChange('linkedinUrl', e.target.value)} className={errors.linkedinUrl ? 'border-destructive' : ''} />
+              {errors.linkedinUrl && (<p className="text-sm text-destructive">{errors.linkedinUrl}</p>)}
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name (readonly) */}
+              {/* Name - editable */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="firstName" className="text-sm font-medium">First Name *</label>
-                  <Input id="firstName" value={formData.firstName} disabled readOnly />
+                  <Input id="firstName" value={formData.firstName} onChange={(e)=>handleInputChange('firstName', e.target.value)} />
                   {errors.firstName && (<p className="text-sm text-destructive">{errors.firstName}</p>)}
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="lastName" className="text-sm font-medium">Last Name *</label>
-                  <Input id="lastName" value={formData.lastName} disabled readOnly />
+                  <Input id="lastName" value={formData.lastName} onChange={(e)=>handleInputChange('lastName', e.target.value)} />
                   {errors.lastName && (<p className="text-sm text-destructive">{errors.lastName}</p>)}
                 </div>
               </div>
@@ -343,61 +470,108 @@ export default function CompleteProfilePage() {
                   {errors.emailComm && (<p className="text-sm text-destructive">{errors.emailComm}</p>)}
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="phoneWhatsapp" className="text-sm font-medium flex items-center gap-2"><Phone className="h-4 w-4"/> WhatsApp Number *</label>
-                  <Input id="phoneWhatsapp" type="tel" placeholder="e.g. +1 555 123 4567" value={formData.phoneWhatsapp} onChange={(e)=>handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
+                  <label className="text-sm font-medium flex items-center gap-2"><Phone className="h-4 w-4"/> WhatsApp Number *</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Select id="whatsappCountryCode" value={formData.whatsappCountryCode} onChange={(e)=>handleInputChange('whatsappCountryCode', (e.target as HTMLSelectElement).value)}>
+                      <option value="">Pin Code</option>
+                      {phoneCodes.map(pc => (
+                        <option key={pc.code} value={pc.dial}>{pc.label}</option>
+                      ))}
+                    </Select>
+                    <div className="col-span-2">
+                      <Input id="phoneWhatsapp" type="tel" placeholder="Phone number" value={formData.phoneWhatsapp} onChange={(e)=>handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
+                    </div>
+                  </div>
                   {errors.phoneWhatsapp && (<p className="text-sm text-destructive">{errors.phoneWhatsapp}</p>)}
                 </div>
               </div>
 
-              {/* Location of Work */}
+              {/* Location of Work - order: country, state, city, address with dependent dropdowns */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="country" className="text-sm font-medium">Country *</label>
+                  <Select id="country" value={selectedCountryCode} onChange={(e)=>handleCountrySelect((e.target as HTMLSelectElement).value)} className={errors.country ? 'border-destructive' : ''}>
+                    <option value="">Select a country</option>
+                    {countries.map(c => (<option key={c.isoCode} value={c.isoCode}>{c.name}</option>))}
+                  </Select>
+                  {errors.country && (<p className="text-sm text-destructive">{errors.country}</p>)}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="state" className="text-sm font-medium">State *</label>
+                  <Select id="state" value={selectedStateCode} onChange={(e)=>handleStateSelect((e.target as HTMLSelectElement).value)} className={errors.state ? 'border-destructive' : ''}>
+                    <option value="">Select a state</option>
+                    {states.map(s => (<option key={s.isoCode} value={s.isoCode}>{s.name}</option>))}
+                  </Select>
+                  {errors.state && (<p className="text-sm text-destructive">{errors.state}</p>)}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="city" className="text-sm font-medium">City *</label>
+                  <Select id="city" value={formData.city} onChange={(e)=>handleCitySelect((e.target as HTMLSelectElement).value)} className={errors.city ? 'border-destructive' : ''}>
+                    <option value="">Select a city</option>
+                    {cities.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
+                  </Select>
+                  {errors.city && (<p className="text-sm text-destructive">{errors.city}</p>)}
+                </div>
                 <div className="space-y-2">
                   <label htmlFor="address" className="text-sm font-medium">Address</label>
                   <Input id="address" placeholder="Street and area" value={formData.address} onChange={(e)=>handleInputChange('address', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="city" className="text-sm font-medium">City *</label>
-                  <Input id="city" placeholder="City" value={formData.city} onChange={(e)=>handleInputChange('city', e.target.value)} className={errors.city ? 'border-destructive' : ''} />
-                  {errors.city && (<p className="text-sm text-destructive">{errors.city}</p>)}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="state" className="text-sm font-medium">State *</label>
-                  <Input id="state" placeholder="State" value={formData.state} onChange={(e)=>handleInputChange('state', e.target.value)} className={errors.state ? 'border-destructive' : ''} />
-                  {errors.state && (<p className="text-sm text-destructive">{errors.state}</p>)}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="country" className="text-sm font-medium">Country *</label>
-                  <Input id="country" placeholder="Country" value={formData.country} onChange={(e)=>handleInputChange('country', e.target.value)} className={errors.country ? 'border-destructive' : ''} />
-                  {errors.country && (<p className="text-sm text-destructive">{errors.country}</p>)}
-                </div>
               </div>
 
-              {/* Category & Sub-Category */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Category & Sub-Category with linkage and multi-select */}
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="category" className="text-sm font-medium">Category of Registration *</label>
-                  <Select id="category" value={formData.category} onChange={(e)=>handleInputChange('category', (e.target as HTMLSelectElement).value)} className={errors.category ? 'border-destructive' : ''}>
+                  <Select id="category" value={formData.category} onChange={(e)=>{
+                    const value = (e.target as HTMLSelectElement).value
+                    handleInputChange('category', value)
+                    setSelectedSubCategories([])
+                  }} className={errors.category ? 'border-destructive' : ''}>
                     <option value="">Select a category</option>
-                    <option value="Consultant">Consultant</option>
-                    <option value="Advisor">Advisor</option>
-                    <option value="Auditor">Auditor</option>
-                    <option value="Lawyer">Lawyer</option>
-                    <option value="Other">Other</option>
+                    {Object.keys(categories).map(cat => (<option key={cat} value={cat}>{cat}</option>))}
                   </Select>
                   {errors.category && (<p className="text-sm text-destructive">{errors.category}</p>)}
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="subCategory" className="text-sm font-medium">Service / Sub-Category *</label>
-                  <Select id="subCategory" value={formData.subCategory} onChange={(e)=>handleInputChange('subCategory', (e.target as HTMLSelectElement).value)} className={errors.subCategory ? 'border-destructive' : ''}>
-                    <option value="">Select a sub-category</option>
-                    <option value="Tax">Tax</option>
-                    <option value="Accounting">Accounting</option>
-                    <option value="Legal">Legal</option>
-                    <option value="Technology">Technology</option>
-                    <option value="Strategy">Strategy</option>
-                  </Select>
-                  {errors.subCategory && (<p className="text-sm text-destructive">{errors.subCategory}</p>)}
-                </div>
+
+                {!!availableSubCategories.length && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Select up to 3 sub-categories (1 mandatory)</label>
+                      <span className="text-xs text-muted-foreground">Selected: {selectedSubCategories.length}/3</span>
+                    </div>
+                    <div className="space-y-2">
+                      {availableSubCategories.map(sc => {
+                        const isSelected = selectedSubCategories.some(s => s.name === sc.name)
+                        return (
+                          <div key={sc.name} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center border rounded p-2">
+                            <div className="flex items-center gap-2">
+                              <Checkbox checked={isSelected} onChange={() => toggleSubCategory(sc.name)} />
+                              <span className="text-sm">{sc.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs">Relevant Years</label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={selectedSubCategories.find(s => s.name === sc.name)?.years || ''}
+                                onChange={(e)=>setSubCategoryYears(sc.name, e.target.value)}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs">Mandatory</label>
+                              <input
+                                type="radio"
+                                name="mandatory-subcategory"
+                                checked={selectedSubCategories.find(s => s.name === sc.name)?.mandatory || false}
+                                onChange={()=>setMandatorySubCategory(sc.name)}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Experience */}
@@ -407,21 +581,12 @@ export default function CompleteProfilePage() {
                   <Input id="yearsExperience" type="number" min={0} value={formData.yearsExperience} onChange={(e)=>handleInputChange('yearsExperience', e.target.value)} className={errors.yearsExperience ? 'border-destructive' : ''} />
                   {errors.yearsExperience && (<p className="text-sm text-destructive">{errors.yearsExperience}</p>)}
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="yearsRelevantExperience" className="text-sm font-medium">Years of Relevant Experience *</label>
-                  <Input id="yearsRelevantExperience" type="number" min={0} value={formData.yearsRelevantExperience} onChange={(e)=>handleInputChange('yearsRelevantExperience', e.target.value)} className={errors.yearsRelevantExperience ? 'border-destructive' : ''} />
-                  {errors.yearsRelevantExperience && (<p className="text-sm text-destructive">{errors.yearsRelevantExperience}</p>)}
-                </div>
+                {/* Years of Relevant Experience removed as per requirements */}
               </div>
 
-              {/* LinkedIn */}
-              <div className="space-y-2">
-                <label htmlFor="linkedinUrl" className="text-sm font-medium flex items-center gap-2"><Linkedin className="h-4 w-4"/> LinkedIn Profile URL</label>
-                <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/yourprofile" value={formData.linkedinUrl} onChange={(e)=>handleInputChange('linkedinUrl', e.target.value)} className={errors.linkedinUrl ? 'border-destructive' : ''} />
-                {errors.linkedinUrl && (<p className="text-sm text-destructive">{errors.linkedinUrl}</p>)}
-              </div>
+              
 
-              {/* Detailed Profile + Resume Upload */}
+              {/* Detailed Profile + Resume Upload (custom button) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="detailedProfileText" className="text-sm font-medium">Detailed Profile</label>
@@ -429,10 +594,16 @@ export default function CompleteProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload Resume</label>
-                  <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeUpload} />
-                  {formData.resumeUrl && (
-                    <p className="text-sm text-muted-foreground">Uploaded: {formData.resumeUrl}</p>
-                  )}
+                  <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} />
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="secondary" onClick={triggerResumePicker}>Upload Resume</Button>
+                    {formData.resumeUrl && (
+                      <>
+                        <span className="text-sm truncate max-w-[200px]">Uploaded</span>
+                        <Button type="button" variant="outline" onClick={handleRemoveResume}>Remove</Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -520,25 +691,41 @@ export default function CompleteProfilePage() {
                 </div>
               </div>
 
-              {/* Supporting documents upload */}
+              {/* Supporting documents upload (custom button with remove) */}
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload supporting documents</label>
-                <input type="file" multiple onChange={handleDocumentsUpload} />
+                <input ref={docsInputRef} type="file" multiple className="hidden" onChange={handleDocumentsUpload} />
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="secondary" onClick={triggerDocsPicker}>Upload Documents</Button>
+                </div>
                 {!!formData.documents.length && (
-                  <div className="text-sm text-muted-foreground">Uploaded: {formData.documents.length} file(s)</div>
+                  <div className="space-y-2">
+                    {formData.documents.map((url) => (
+                      <div key={url} className="flex items-center justify-between gap-2 border rounded p-2">
+                        <span className="text-sm truncate max-w-[280px]">{url}</span>
+                        <Button type="button" variant="outline" onClick={()=>handleRemoveDocument(url)}>Remove</Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Accept rules & privacy */}
+              {/* Accept rules & privacy with links */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Agreements *</label>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={formData.acceptedRules} onChange={(e)=>handleInputChange('acceptedRules', (e.target as HTMLInputElement).checked)} />
-                  <span className="text-sm">I accept the Rules & Regulations</span>
+                  <span className="text-sm">I accept the
+                    {' '}
+                    <a href="/policies/rules" target="_blank" rel="noopener noreferrer" className="underline">Rules & Regulations</a>
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox checked={formData.acceptedPrivacy} onChange={(e)=>handleInputChange('acceptedPrivacy', (e.target as HTMLInputElement).checked)} />
-                  <span className="text-sm">I accept the Privacy Policy</span>
+                  <span className="text-sm">I accept the
+                    {' '}
+                    <a href="/policies/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>
+                  </span>
                 </div>
                 {(errors.acceptedRules || errors.acceptedPrivacy) && (
                   <p className="text-sm text-destructive">Please accept both to proceed</p>

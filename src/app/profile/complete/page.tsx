@@ -137,6 +137,25 @@ export default function CompleteProfilePage() {
   const resumeInputRef = useRef<HTMLInputElement>(null)
   const docsInputRef = useRef<HTMLInputElement>(null)
 
+  // Draft previous organization entry for Save flow
+  const [newExperience, setNewExperience] = useState<ExperienceItem>({
+    title: "",
+    company: "",
+    startDate: "",
+    endDate: "",
+    description: "",
+    firmSize: "",
+    numPartners: 0,
+  })
+  const [showNewExperienceForm, setShowNewExperienceForm] = useState<boolean>(false)
+
+  // Ensure draft form is visible when there are no previous organizations
+  useEffect(() => {
+    if (formData.experiences.length === 0 && !showNewExperienceForm) {
+      setShowNewExperienceForm(true)
+    }
+  }, [formData.experiences.length, showNewExperienceForm])
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
@@ -263,6 +282,39 @@ export default function CompleteProfilePage() {
     }))
   }
 
+  // New experience Save flow
+  const updateNewExperienceField = (field: keyof ExperienceItem, value: any) => {
+    const v = field === 'numPartners' ? Number(value || 0) : value
+    if (field === 'endDate' && v === 'Present') {
+      setNewExperience(prev => ({ ...prev, endDate: 'Present' }))
+      // Clear current org 'Present' state if any
+      setFormData(prev => ({ ...prev, currentOrgToDate: prev.currentOrgToDate === 'Present' ? '' : prev.currentOrgToDate }))
+    } else {
+      setNewExperience(prev => ({ ...prev, [field]: v }))
+    }
+  }
+
+  const clearNewExperience = () => {
+    setNewExperience({ title: "", company: "", startDate: "", endDate: "", description: "", firmSize: "", numPartners: 0 })
+    setShowNewExperienceForm(false)
+  }
+
+  const saveNewExperience = () => {
+    if (!newExperience.company || !newExperience.title) return
+    setFormData(prev => {
+      const next = { ...prev, experiences: [...prev.experiences, newExperience] }
+      // sort by start date only within previous org details
+      next.experiences = [...next.experiences].sort((a, b) => {
+        const ad = a.startDate ? new Date(a.startDate).getTime() : 0
+        const bd = b.startDate ? new Date(b.startDate).getTime() : 0
+        return ad - bd
+      })
+      return next
+    })
+    clearNewExperience()
+    setShowNewExperienceForm(false)
+  }
+
   const handleCitySelect = (value: string) => {
     handleInputChange('city', value)
   }
@@ -353,6 +405,7 @@ export default function CompleteProfilePage() {
     if (!formData.country.trim()) newErrors.country = "Country is required"
     if (!formData.category.trim()) newErrors.category = "Category is required"
     if (!selectedSubCategories.length) newErrors.category = "Select at least one sub-category"
+    if (selectedSubCategories.length > 3) newErrors.subCategories = "You can select a maximum of 3 sub-categories."
     if (!formData.yearsExperience.trim()) newErrors.yearsExperience = "Years of experience is required"
     // Years of Relevant Experience no longer required
     if (!formData.linkedinUrl && !formData.detailedProfileText && !formData.resumeUrl) {
@@ -555,6 +608,7 @@ export default function CompleteProfilePage() {
                       placeholder="Country code"
                       searchPlaceholder="Search by country or code..."
                       displayField="value"
+                      inlineSearch
                       onChange={(val)=>handleInputChange('whatsappCountryCode', val)}
                     />
                     <div className="col-span-2">
@@ -574,6 +628,7 @@ export default function CompleteProfilePage() {
                     value={selectedCountryCode || ''}
                     options={countries.map(c => ({ value: c.isoCode, label: c.name, icon: <span className="text-lg">{codeToFlagEmoji(c.isoCode)}</span> }))}
                     placeholder="Select a country"
+                    inlineSearch
                     onChange={(val)=>handleCountrySelect(val)}
                   />
                   {errors.country && (<p className="text-sm text-destructive">{errors.country}</p>)}
@@ -585,6 +640,7 @@ export default function CompleteProfilePage() {
                     value={selectedStateCode || ''}
                     options={states.map(s => ({ value: s.isoCode, label: s.name }))}
                     placeholder="Select a state"
+                    inlineSearch
                     onChange={(val)=>handleStateSelect(val)}
                   />
                   {errors.state && (<p className="text-sm text-destructive">{errors.state}</p>)}
@@ -596,6 +652,7 @@ export default function CompleteProfilePage() {
                     value={formData.city || ''}
                     options={cities.map(c => ({ value: c.name, label: c.name }))}
                     placeholder="Select a city"
+                    inlineSearch
                     onChange={(val)=>handleCitySelect(val)}
                   />
                   {errors.city && (<p className="text-sm text-destructive">{errors.city}</p>)}
@@ -615,6 +672,7 @@ export default function CompleteProfilePage() {
                     value={formData.category || ''}
                     options={Object.keys(categories).map(cat => ({ value: cat, label: cat }))}
                     placeholder="Select a category"
+                    inlineSearch
                     onChange={(val)=>{ handleInputChange('category', val); setSelectedSubCategories([]) }}
                   />
                   {errors.category && (<p className="text-sm text-destructive">{errors.category}</p>)}
@@ -630,14 +688,20 @@ export default function CompleteProfilePage() {
                       value=""
                       options={availableSubCategories.map(sc => ({ value: sc.name, label: sc.name }))}
                       placeholder="Select a sub-category"
+                      inlineSearch
                       onChange={(val)=>{
                         if (!val) return
                         const exists = selectedSubCategories.find(sc => sc.name === val)
                         if (exists) return
-                        if (selectedSubCategories.length >= 3) return
+                        if (selectedSubCategories.length >= 3) {
+                          setErrors(prev => ({ ...prev, subCategories: 'You can select a maximum of 3 sub-categories.' }))
+                          return
+                        }
                         setSelectedSubCategories([...selectedSubCategories, { name: val, years: '', mandatory: selectedSubCategories.length === 0 }])
+                        setErrors(prev => ({ ...prev, subCategories: '' }))
                       }}
                     />
+                    {errors.subCategories && (<p className="text-sm text-destructive">{errors.subCategories}</p>)}
                     {!!selectedSubCategories.length && (
                       <div className="space-y-2">
                         {selectedSubCategories.map((sc, idx) => (
@@ -654,7 +718,7 @@ export default function CompleteProfilePage() {
                               <input type="radio" name="mandatory-subcategory" checked={sc.mandatory} onChange={()=>setMandatorySubCategory(sc.name)} />
                             </div>
                             <div className="flex items-center justify-end">
-                              <Button type="button" variant="outline" size="sm" onClick={()=>setSelectedSubCategories(selectedSubCategories.filter(s => s.name !== sc.name))}>Remove</Button>
+                              <Button type="button" variant="outline" size="sm" onClick={()=>{ const next = selectedSubCategories.filter(s => s.name !== sc.name); setSelectedSubCategories(next); if (next.length <= 3) setErrors(prev => ({ ...prev, subCategories: '' })) }}>Remove</Button>
                             </div>
                           </div>
                         ))}
@@ -682,38 +746,10 @@ export default function CompleteProfilePage() {
                 <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} />
               </div>
 
-              {/* Upload Resume on new line */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload Resume</label>
-                <input ref={resumeInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} />
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="secondary" onClick={triggerResumePicker}>Upload Resume</Button>
-                  {formData.resumeUrl && (
-                    <>
-                      <span className="text-sm truncate max-w-[200px]">Uploaded</span>
-                      <Button type="button" variant="outline" onClick={handleRemoveResume}>Remove</Button>
-                    </>
-                  )}
-                </div>
-              </div>
+              {/* Upload Resume UI removed per requirements */}
 
-              {/* Auto-populated sections */}
+              {/* Auto-populated sections (experiences moved to expandable window only) */}
               <div className="space-y-4">
-                {!!formData.experiences?.length && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium flex items-center gap-2"><Building className="h-4 w-4" /> Previous Work Experiences</h4>
-                    <div className="space-y-2">
-                      {formData.experiences.map((exp, idx) => (
-                        <div key={`exp-${idx}`} className="rounded border p-3 text-sm">
-                          <div className="font-medium">{exp.title} @ {exp.company}</div>
-                          <div className="text-muted-foreground">{exp.startDate || ''} {exp.endDate ? `- ${exp.endDate}` : ''}</div>
-                          {exp.description && <div>{exp.description}</div>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {!!formData.licenses?.length && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium flex items-center gap-2"><BadgeCheck className="h-4 w-4" /> Licenses / Certifications / Memberships</h4>
@@ -782,9 +818,52 @@ export default function CompleteProfilePage() {
                 <details>
                   <summary className="cursor-pointer select-none p-3 rounded bg-violet-100 text-sm font-medium">Previous organization details</summary>
                   <div className="mt-3 space-y-3 rounded-lg border border-violet-200 bg-violet-50 p-4">
-                    <div>
-                      <Button type="button" variant="secondary" onClick={addExperienceRow}>Add new row</Button>
-                    </div>
+                    {/* Add new row button visible only when at least one previous organization exists */}
+                    {!!formData.experiences.length && (
+                      <div>
+                        <Button type="button" variant="secondary" onClick={()=>setShowNewExperienceForm(true)}>Add new row</Button>
+                      </div>
+                    )}
+                    {/* New organization draft entry with Save (shown when toggled or when none exist) */}
+                    {showNewExperienceForm && (
+                      <div className="rounded-lg border border-violet-200 bg-white p-3 grid grid-cols-1 md:grid-cols-2 gap-4 shadow-sm border-l-4 border-l-violet-400">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Organisation Name</label>
+                          <Input value={newExperience.company} onChange={(e)=>updateNewExperienceField('company', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Designation</label>
+                          <Input value={newExperience.title} onChange={(e)=>updateNewExperienceField('title', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Firm Size</label>
+                          <Input value={newExperience.firmSize || ''} onChange={(e)=>updateNewExperienceField('firmSize', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Number of Partners</label>
+                          <Input type="number" min={0} value={newExperience.numPartners?.toString() || ''} onChange={(e)=>updateNewExperienceField('numPartners', e.target.value)} />
+                        </div>
+                        {/* Partition line before dates */}
+                        <div className="md:col-span-2 h-px bg-violet-200" />
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">From date</label>
+                          <Input type="date" value={newExperience.startDate || ''} onChange={(e)=>updateNewExperienceField('startDate', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">To date</label>
+                          <div className="flex items-center gap-2">
+                            <Input type="date" value={newExperience.endDate === 'Present' ? '' : (newExperience.endDate || '')} onChange={(e)=>updateNewExperienceField('endDate', e.target.value)} disabled={newExperience.endDate === 'Present'} />
+                            <Button type="button" size="sm" variant={newExperience.endDate === 'Present' ? 'secondary' : 'outline'} onClick={()=>updateNewExperienceField('endDate', newExperience.endDate === 'Present' ? '' : 'Present')}>Present</Button>
+                          </div>
+                        </div>
+                        {/* Partition line before actions */}
+                        <div className="md:col-span-2 h-px bg-violet-200" />
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="secondary" onClick={saveNewExperience} disabled={!newExperience.company || !newExperience.title}>Save</Button>
+                          <Button type="button" variant="outline" onClick={clearNewExperience}>Clear</Button>
+                        </div>
+                      </div>
+                    )}
                     {([...formData.experiences].sort((a, b) => {
                       const ad = a.startDate ? new Date(a.startDate).getTime() : 0
                       const bd = b.startDate ? new Date(b.startDate).getTime() : 0
@@ -849,7 +928,7 @@ export default function CompleteProfilePage() {
 
               {/* Supporting documents upload (custom button with remove) */}
               <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload supporting documents</label>
+                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload supporting documents (resume, certifications, etc.,)</label>
                 <input ref={docsInputRef} type="file" multiple className="hidden" onChange={handleDocumentsUpload} />
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="secondary" onClick={triggerDocsPicker}>Upload Documents</Button>

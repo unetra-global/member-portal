@@ -2,6 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  // Allow unauthenticated API requests during local/dev to facilitate testing
+  // In production, API routes will still go through normal session handling
+  if (request.nextUrl.pathname.startsWith('/api') && process.env.NODE_ENV !== 'production') {
+    return NextResponse.next({ request })
+  }
+
   // If Supabase env variables are not set, bypass session handling for local/dev preview
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next({ request })

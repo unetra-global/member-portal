@@ -1,0 +1,96 @@
+// Prisma schema for Networking Portal backend
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum MemberStatus {
+  active
+  blocked
+}
+
+enum Tier {
+  user
+  member
+  admin
+  ops
+}
+
+// Models (PascalCase) mapped to snake_case tables
+model Category {
+  id    String @id @default(uuid()) @db.Uuid
+  name  String @unique @db.Text
+  field String @db.Text
+
+  services Services[]
+
+  @@map("category")
+}
+
+model Services {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique @db.Text
+  category_id String? @db.Uuid
+
+  category Category?      @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  members  MemberService[]
+
+  @@index([category_id])
+  @@map("services")
+}
+
+model Member {
+  id                       String       @id @default(uuid()) @db.Uuid
+  user_id                  String       @db.Text
+  first_name               String       @db.Text
+  last_name                String       @db.Text
+  email                    String       @unique @db.Text
+  phone_number             String       @db.Text
+  country                  String       @db.Text
+  state                    String       @db.Text
+  city                     String       @db.Text
+  address                  String       @db.Text
+  experience               Json
+  years_experience         Int
+  join_reason              String       @db.Text
+  expectations             String       @db.Text
+  additional_info          String       @db.Text
+  detailed_profile         String       @db.Text
+  uploaded_documents       String[]
+  terms_accepted           Boolean
+  privacy_accepted         Boolean
+  linkedin_url             String       @db.Text
+  extracted_from_linkedin  Boolean
+  member_status            MemberStatus @default(active)
+  tier                     Tier         @default(user)
+  start_date               DateTime
+  end_date                 DateTime?
+
+  services MemberService[]
+
+  @@map("member")
+}
+
+model MemberService {
+  id                        String  @id @default(uuid()) @db.Uuid
+  member_id                 String  @db.Uuid
+  service_id                String  @db.Uuid
+  is_preferred              Boolean
+  is_active                 Boolean
+  relevant_years_experience Int
+
+  member  Member   @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  service Services @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id, service_id])
+  @@index([member_id])
+  @@index([service_id])
+  @@map("member_service")
+}

@@ -75,6 +75,8 @@ export const MemberServiceByNameSchema = z.object({
 });
 
 export const MemberCreateSchema = MemberBaseSchema.omit({ id: true }).extend({
+  // Make user_id optional for POST requests from UI; server derives fallback
+  user_id: z.string().min(1).optional(),
   member_services: z.array(MemberServiceByNameSchema).optional(),
 });
 export const MemberUpdateSchema = MemberBaseSchema.partial().extend({ id: z.string().uuid() });

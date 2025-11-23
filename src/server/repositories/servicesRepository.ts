@@ -22,6 +22,15 @@ export class ServicesRepository {
     return prisma.services.create({ data });
   }
 
+  // Ensure a service exists by name; creates if missing
+  async upsertByName(name: string, category_id?: string | null): Promise<Services> {
+    return prisma.services.upsert({
+      where: { name },
+      update: {},
+      create: { name, category_id: category_id ?? null },
+    });
+  }
+
   async update(id: string, data: Partial<Omit<Services, "id">>): Promise<Services> {
     return prisma.services.update({ where: { id }, data });
   }

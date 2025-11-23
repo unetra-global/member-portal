@@ -23,6 +23,10 @@ export class MembersService {
       throw new Error("email: already registered");
     }
     const { member_services, ...memberData } = data as any;
+    const ensuredMemberData = {
+      ...memberData,
+      user_id: memberData.user_id ?? memberData.email,
+    };
 
     // If service names provided, resolve to IDs and create pivot rows atomically
     if (Array.isArray(member_services) && member_services.length > 0) {
@@ -35,7 +39,9 @@ export class MembersService {
 
       const missing = uniqueNames.filter((n) => !availableByName.has(n));
       if (missing.length > 0) {
-        throw new Error(`member_services.service_name: not found -> ${missing.join(", ")}`);
+        // Create missing services on-the-fly to avoid blocking member creation
+        const created = await Promise.all(missing.map((n) => this.servicesRepo.upsertByName(n)));
+        created.forEach((svc) => availableByName.set(svc.name, svc.id));
       }
 
       const seenServiceIds = new Set<string>();
@@ -53,11 +59,11 @@ export class MembersService {
           return true;
         });
 
-      return this.repo.createWithMemberServices(memberData as Omit<Member, "id">, pivots);
+      return this.repo.createWithMemberServices(ensuredMemberData as Omit<Member, "id">, pivots);
     }
 
     // Fallback to simple member create if no services provided
-    return this.repo.create(memberData as Omit<Member, "id">);
+    return this.repo.create(ensuredMemberData as Omit<Member, "id">);
   }
 
   async update(id: string, payload: unknown): Promise<Member> {

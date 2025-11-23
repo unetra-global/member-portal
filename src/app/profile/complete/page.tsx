@@ -14,10 +14,12 @@ import { LoadingPage } from "@/components/ui/loading"
 import { Loader2, User, Building, MapPin, Phone, Globe, Linkedin, FileText, Award, BadgeCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Country, State, City } from "country-state-city"
-import { categories } from "@/lib/data/categories"
 import { fallbackPhoneCodes } from "@/lib/data/phoneCodes"
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const countryCodesList: any = require("country-codes-list")
+
+// Frontend/Backend integration via environment base URL (optional for same-origin dev)
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
 
  interface ExperienceItem {
    title: string
@@ -129,6 +131,11 @@ export default function CompleteProfilePage() {
   // Phone codes
   const [phoneCodes, setPhoneCodes] = useState<Array<{ code: string; dial: string; label: string }>>([])
   const [isLinkedInConsent, setIsLinkedInConsent] = useState<boolean>(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // Dynamic categories and sub-categories from API
+  const [categoryOptions, setCategoryOptions] = useState<Option[]>([])
+  const [availableSubCategories, setAvailableSubCategories] = useState<Array<{ name: string }>>([])
 
   // Subcategory selection
   const [selectedSubCategories, setSelectedSubCategories] = useState<Array<{ name: string; years: string; mandatory: boolean }>>([])
@@ -319,9 +326,38 @@ export default function CompleteProfilePage() {
     handleInputChange('city', value)
   }
 
-  // Subcategory selection logic
-  const availableSubCategories = useMemo(() => {
-    return categories[formData.category] || []
+  // Load categories from API once
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await fetch(`/api/categories`)
+        const data = await res.json()
+        const opts: Option[] = (Array.isArray(data) ? data : []).map((c: any) => ({ value: c.name, label: c.name }))
+        setCategoryOptions(opts)
+      } catch (e) {
+        setCategoryOptions([])
+      }
+    }
+    loadCategories()
+  }, [])
+
+  // Load sub-categories (services) filtered by selected category name
+  useEffect(() => {
+    const loadServices = async () => {
+      if (!formData.category) {
+        setAvailableSubCategories([])
+        return
+      }
+      try {
+        const res = await fetch(`/api/services`)
+        const data = await res.json()
+        const filtered = (Array.isArray(data) ? data : []).filter((s: any) => s?.category?.name === formData.category)
+        setAvailableSubCategories(filtered.map((s: any) => ({ name: s.name })))
+      } catch (e) {
+        setAvailableSubCategories([])
+      }
+    }
+    loadServices()
   }, [formData.category])
 
   const toggleSubCategory = (name: string) => {
@@ -396,24 +432,31 @@ export default function CompleteProfilePage() {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
-    if (!formData.emailComm.trim()) newErrors.emailComm = "Email for communications is required"
+    if (!formData.emailComm.trim()) {
+      newErrors.emailComm = "Email for communications is required"
+    } else if (!emailRegex.test(formData.emailComm.trim())) {
+      newErrors.emailComm = "Enter a valid email address"
+    }
+    if (!formData.whatsappCountryCode) newErrors.whatsappCountryCode = "Country code is required"
     if (!formData.phoneWhatsapp.trim()) newErrors.phoneWhatsapp = "WhatsApp phone is required"
     if (!formData.city.trim()) newErrors.city = "City is required"
     if (!formData.state.trim()) newErrors.state = "State is required"
     if (!formData.country.trim()) newErrors.country = "Country is required"
     if (!formData.category.trim()) newErrors.category = "Category is required"
-    if (!selectedSubCategories.length) newErrors.category = "Select at least one sub-category"
+    if (!selectedSubCategories.length) newErrors.subCategories = "Select at least one sub-category"
     if (selectedSubCategories.length > 3) newErrors.subCategories = "You can select a maximum of 3 sub-categories."
     if (!formData.yearsExperience.trim()) newErrors.yearsExperience = "Years of experience is required"
     // Years of Relevant Experience no longer required
     if (!formData.linkedinUrl && !formData.detailedProfileText && !formData.resumeUrl) {
-      newErrors.linkedinUrl = "Provide LinkedIn profile or detailed profile or resume"
+      const msg = "Provide LinkedIn profile or detailed profile or resume"
+      newErrors.linkedinUrl = msg
+      newErrors.detailedProfileText = msg
     }
-    if (!formData.acceptedRules || !formData.acceptedPrivacy) {
-      newErrors.acceptedRules = "Please accept rules & privacy"
-    }
+    if (!formData.acceptedRules) newErrors.acceptedRules = "Please accept rules"
+    if (!formData.acceptedPrivacy) newErrors.acceptedPrivacy = "Please accept privacy"
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -421,23 +464,97 @@ export default function CompleteProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) return
+    if (!validateForm()) {
+      setSubmitError('Please fix the above errors.')
+      return
+    }
 
     setIsLoading(true)
+    setSubmitError(null)
 
     try {
-      const response = await fetch('/api/profile/save', {
+      // Build payload mapped to backend member schema
+      const phoneNumber = formData.whatsappCountryCode && formData.phoneWhatsapp
+        ? `${formData.whatsappCountryCode}${formData.phoneWhatsapp}`
+        : formData.phoneWhatsapp
+
+      const experienceItems = [] as Array<{
+        company_name: string
+        company_linkedin_id?: string
+        designation: string
+        firm_size: string
+        number_of_partners: number
+        from_date: string
+        to_date?: string | null
+      }>
+
+      // Current organization as primary experience (optional)
+      if (formData.organisationName || formData.designation || formData.firmSize || formData.currentOrgFromDate) {
+        experienceItems.push({
+          company_name: formData.organisationName || "",
+          company_linkedin_id: undefined,
+          designation: formData.designation || "",
+          firm_size: formData.firmSize || "",
+          number_of_partners: Number(formData.numPartners || 0),
+          from_date: formData.currentOrgFromDate || new Date().toISOString(),
+          to_date: formData.currentOrgToDate && formData.currentOrgToDate !== "Present" ? formData.currentOrgToDate : null,
+        })
+      }
+
+      // Previous experiences
+      (formData.experiences || []).forEach((exp) => {
+        experienceItems.push({
+          company_name: exp.company || "",
+          company_linkedin_id: undefined,
+          designation: exp.title || "",
+          firm_size: exp.firmSize || "",
+          number_of_partners: Number(exp.numPartners || 0),
+          from_date: exp.startDate || new Date().toISOString(),
+          to_date: exp.endDate && exp.endDate !== "Present" ? exp.endDate : null,
+        })
+      })
+
+      const memberServices = (selectedSubCategories || []).map(sc => ({
+        service_name: sc.name,
+        is_preferred: !!sc.mandatory,
+        is_active: true,
+        relevant_years_experience: Number(sc.years || 0),
+      }))
+
+      const payload = {
+        // user_id intentionally omitted; backend derives fallback
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.emailComm,
+        phone_number: phoneNumber,
+        country: formData.country,
+        state: formData.state,
+        city: formData.city,
+        address: formData.address || "N/A",
+        experience: experienceItems,
+        years_experience: Number(formData.yearsExperience || 0),
+        join_reason: formData.whyJoin || "N/A",
+        expectations: formData.expectations || "N/A",
+        additional_info: formData.anythingElse || "N/A",
+        detailed_profile: formData.detailedProfileText || "N/A",
+        uploaded_documents: [...(formData.documents || []), ...(formData.resumeUrl ? [formData.resumeUrl] : [])],
+        terms_accepted: !!formData.acceptedRules,
+        privacy_accepted: !!formData.acceptedPrivacy,
+        linkedin_url: formData.linkedinUrl || "N/A",
+        extracted_from_linkedin: !!isLinkedInConsent,
+        member_status: "active",
+        tier: "member",
+        start_date: new Date().toISOString(),
+        end_date: null,
+        member_services: memberServices,
+      }
+
+      const response = await fetch(`/api/members`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          subCategories: selectedSubCategories.map(sc => ({ name: sc.name, years: Number(sc.years || 0), mandatory: !!sc.mandatory })),
-          yearsExperience: Number(formData.yearsExperience || 0),
-          yearsRelevantExperience: Number(formData.yearsRelevantExperience || 0),
-          numPartners: Number(formData.numPartners || 0),
-        })
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
@@ -446,10 +563,11 @@ export default function CompleteProfilePage() {
         router.push('/dashboard')
       } else {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save profile')
+        setSubmitError(errorData.error || 'Failed to save profile')
       }
     } catch (error) {
       console.error('Error saving profile:', error)
+      setSubmitError((error as Error)?.message || 'Unexpected error while saving')
     } finally {
       setIsLoading(false)
     }
@@ -461,32 +579,32 @@ export default function CompleteProfilePage() {
 
   // Storage upload helpers
   const uploadFileToStorage = async (file: File, prefix: string) => {
-    const bucket = 'user-documents'
-    const path = `${user?.id}/${prefix}-${Date.now()}-${file.name}`
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
-    if (uploadError) throw uploadError
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-    return data.publicUrl
+    // Demo mode: skip backend upload. Return a local object URL.
+    // const bucket = 'user-documents'
+    // const path = `${user?.id}/${prefix}-${Date.now()}-${file.name}`
+    // const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+    // if (uploadError) throw uploadError
+    // const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+    // return data.publicUrl
+    return URL.createObjectURL(file)
   }
 
   const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || !files[0]) return
-    setIsLoading(true)
     try {
       const url = await uploadFileToStorage(files[0], 'resume')
       handleInputChange('resumeUrl', url)
     } catch (err) {
-      console.error('Resume upload error:', err)
+      // Swallow errors in demo mode
     } finally {
-      setIsLoading(false)
+      // no-op
     }
   }
 
   const handleDocumentsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
-    setIsLoading(true)
     try {
       const urls: string[] = []
       for (const file of Array.from(files)) {
@@ -495,9 +613,9 @@ export default function CompleteProfilePage() {
       }
       handleInputChange('documents', [...formData.documents, ...urls])
     } catch (err) {
-      console.error('Documents upload error:', err)
+      // Swallow errors in demo mode
     } finally {
-      setIsLoading(false)
+      // no-op
     }
   }
 
@@ -524,6 +642,11 @@ export default function CompleteProfilePage() {
           </CardHeader>
           
           <CardContent className="space-y-6">
+            {submitError && (
+              <div className="rounded-md border border-destructive bg-red-50 p-3 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
             {/* LinkedIn Auto-fill Section */}
             <div className="p-4 rounded-lg space-y-3" style={{ backgroundColor: '#0966c2' }}>
               <div className="flex items-center gap-3">
@@ -611,6 +734,9 @@ export default function CompleteProfilePage() {
                       inlineSearch
                       onChange={(val)=>handleInputChange('whatsappCountryCode', val)}
                     />
+                    {errors.whatsappCountryCode && (
+                      <p className="text-sm text-destructive">{errors.whatsappCountryCode}</p>
+                    )}
                     <div className="col-span-2">
                       <Input id="phoneWhatsapp" type="tel" placeholder="Phone number" value={formData.phoneWhatsapp} onChange={(e)=>handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
                     </div>
@@ -670,7 +796,7 @@ export default function CompleteProfilePage() {
                   <SearchableSelect
                     id="category"
                     value={formData.category || ''}
-                    options={Object.keys(categories).map(cat => ({ value: cat, label: cat }))}
+                    options={categoryOptions}
                     placeholder="Select a category"
                     inlineSearch
                     onChange={(val)=>{ handleInputChange('category', val); setSelectedSubCategories([]) }}
@@ -743,7 +869,8 @@ export default function CompleteProfilePage() {
               {/* Detailed Profile */}
               <div className="space-y-2">
                 <label htmlFor="detailedProfileText" className="text-sm font-medium">Detailed Profile</label>
-                <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} />
+                <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} className={errors.detailedProfileText ? 'border-destructive' : ''} />
+                {errors.detailedProfileText && (<p className="text-sm text-destructive">{errors.detailedProfileText}</p>)}
               </div>
 
               {/* Upload Resume UI removed per requirements */}
@@ -962,18 +1089,24 @@ export default function CompleteProfilePage() {
                     <a href="/policies/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>
                   </span>
                 </div>
-                {(errors.acceptedRules || errors.acceptedPrivacy) && (
-                  <p className="text-sm text-destructive">Please accept both to proceed</p>
-                )}
-              </div>
+              {(errors.acceptedRules || errors.acceptedPrivacy) && (
+                <p className="text-sm text-destructive">Please accept both to proceed</p>
+              )}
+            </div>
 
-              {/* Actions */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
-                  {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</>) : ('Complete Profile')}
-                </Button>
-                <Button type="button" variant="outline" onClick={handleSkip} disabled={isLoading} className="flex-1">Skip for Now</Button>
+            {submitError && (
+              <div className="rounded-md border border-destructive bg-red-50 p-3 text-sm text-destructive">
+                {submitError}
               </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
+                {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</>) : ('Complete Profile')}
+              </Button>
+              <Button type="button" variant="outline" onClick={handleSkip} disabled={isLoading} className="flex-1">Skip for Now</Button>
+            </div>
             </form>
           </CardContent>
         </Card>

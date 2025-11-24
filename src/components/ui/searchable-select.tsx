@@ -119,21 +119,29 @@ export function SearchableSelect({
     <div ref={containerRef} className={cn("relative", className)}>
       {inlineSearch ? (
         <div className={cn(
-          "flex w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm",
+          "flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm",
           disabled && "cursor-not-allowed opacity-50"
         )}>
           {selected?.icon && <span className="text-lg">{selected.icon}</span>}
           <Input
             id={id}
             value={inputValue}
-            onChange={(e)=>{ setIsTyping(true); setInputValue(e.target.value); setQuery(e.target.value); setHighlight(0); if (!open) setOpen(true) }}
-            onFocus={()=>{ setOpen(true); setHighlight(0) }}
+            onChange={(e) => { setIsTyping(true); setInputValue(e.target.value); setQuery(e.target.value); setHighlight(0); if (!open) setOpen(true) }}
+            onFocus={() => { setOpen(true); setHighlight(0) }}
             onKeyDown={onKeyDown}
             placeholder={selected ? (displayField === "value" ? selected.value : selected.label) : placeholder}
             disabled={disabled}
-            className="border-0 px-0 focus-visible:ring-0"
+            className="border-0 px-0 h-auto py-0 focus-visible:ring-0 flex-1 min-w-0"
           />
-          <ChevronDown className="h-4 w-4 opacity-70" />
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            disabled={disabled}
+            className="flex items-center justify-center"
+            aria-label="Toggle dropdown"
+          >
+            <ChevronDown className="h-4 w-4 opacity-70" />
+          </button>
         </div>
       ) : (
         <button
@@ -141,7 +149,7 @@ export function SearchableSelect({
           type="button"
           disabled={disabled}
           className={cn(
-            "flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm",
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm",
             "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             disabled && "cursor-not-allowed opacity-50"
           )}

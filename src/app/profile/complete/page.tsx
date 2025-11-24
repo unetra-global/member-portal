@@ -21,15 +21,15 @@ const countryCodesList: any = require("country-codes-list")
 // Frontend/Backend integration via environment base URL (optional for same-origin dev)
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
 
- interface ExperienceItem {
-   title: string
-   company: string
-   startDate?: string
-   endDate?: string
-   description?: string
-   firmSize?: string
-   numPartners?: number
- }
+interface ExperienceItem {
+  title: string
+  company: string
+  startDate?: string
+  endDate?: string
+  description?: string
+  firmSize?: string
+  numPartners?: number
+}
 
 interface LicenseItem {
   name: string
@@ -44,7 +44,7 @@ interface AwardItem {
   description?: string
 }
 
-  interface ProfileData {
+interface ProfileData {
   firstName: string
   lastName: string
   emailComm: string
@@ -68,16 +68,16 @@ interface AwardItem {
   organisationName: string
   designation: string
   firmSize: string
-    numPartners: string
-    currentOrgFromDate?: string
-    currentOrgToDate?: string
-    whyJoin: string
-    expectations: string
-    anythingElse: string
-    documents: string[]
-    acceptedRules: boolean
-    acceptedPrivacy: boolean
-  }
+  numPartners: string
+  currentOrgFromDate?: string
+  currentOrgToDate?: string
+  whyJoin: string
+  expectations: string
+  anythingElse: string
+  documents: string[]
+  acceptedRules: boolean
+  acceptedPrivacy: boolean
+}
 
 export default function CompleteProfilePage() {
   const { user, loading } = useAuth()
@@ -235,7 +235,7 @@ export default function CompleteProfilePage() {
       setCities([])
       handleInputChange('state', '')
       handleInputChange('city', '')
-    } catch {}
+    } catch { }
   }
 
   const handleStateSelect = (value: string) => {
@@ -247,7 +247,7 @@ export default function CompleteProfilePage() {
       const csCities = City.getCitiesOfState(selectedCountryCode, value) || []
       setCities(csCities.map((c: any) => ({ name: c.name })))
       handleInputChange('city', '')
-    } catch {}
+    } catch { }
   }
 
   // Experiences controls (Previous organization details)
@@ -463,7 +463,7 @@ export default function CompleteProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       setSubmitError('Please fix the above errors.')
       return
@@ -640,7 +640,7 @@ export default function CompleteProfilePage() {
               Help us personalize your experience by completing your profile information
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             {submitError && (
               <div className="rounded-md border border-destructive bg-red-50 p-3 text-sm text-destructive">
@@ -662,7 +662,7 @@ export default function CompleteProfilePage() {
                   type="url"
                   placeholder="https://linkedin.com/in/yourprofile"
                   value={formData.linkedinUrl}
-                  onChange={(e)=>handleInputChange('linkedinUrl', e.target.value)}
+                  onChange={(e) => handleInputChange('linkedinUrl', e.target.value)}
                   className={errors.linkedinUrl ? 'border-destructive' : ''}
                 />
                 {errors.linkedinUrl && (<p className="text-sm text-white/80">{errors.linkedinUrl}</p>)}
@@ -670,7 +670,7 @@ export default function CompleteProfilePage() {
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={isLinkedInConsent}
-                  onChange={(e)=>setIsLinkedInConsent((e.target as HTMLInputElement).checked)}
+                  onChange={(e) => setIsLinkedInConsent((e.target as HTMLInputElement).checked)}
                 />
                 <span className="text-sm text-white">By selecting this, all your data in LinkedIn will be auto filled here.</span>
               </div>
@@ -699,12 +699,12 @@ export default function CompleteProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="firstName" className="text-sm font-medium">First Name *</label>
-                  <Input id="firstName" value={formData.firstName} onChange={(e)=>handleInputChange('firstName', e.target.value)} />
+                  <Input id="firstName" value={formData.firstName} onChange={(e) => handleInputChange('firstName', e.target.value)} />
                   {errors.firstName && (<p className="text-sm text-destructive">{errors.firstName}</p>)}
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="lastName" className="text-sm font-medium">Last Name *</label>
-                  <Input id="lastName" value={formData.lastName} onChange={(e)=>handleInputChange('lastName', e.target.value)} />
+                  <Input id="lastName" value={formData.lastName} onChange={(e) => handleInputChange('lastName', e.target.value)} />
                   {errors.lastName && (<p className="text-sm text-destructive">{errors.lastName}</p>)}
                 </div>
               </div>
@@ -713,34 +713,36 @@ export default function CompleteProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/60 rounded-lg p-4">
                 <div className="space-y-2">
                   <label htmlFor="emailComm" className="text-sm font-medium">Email for Communications *</label>
-                  <Input id="emailComm" type="email" placeholder="you@example.com" value={formData.emailComm} onChange={(e)=>handleInputChange('emailComm', e.target.value)} className={errors.emailComm ? 'border-destructive' : ''} />
+                  <Input id="emailComm" type="email" placeholder="you@example.com" value={formData.emailComm} onChange={(e) => handleInputChange('emailComm', e.target.value)} className={errors.emailComm ? 'border-destructive' : ''} />
                   {errors.emailComm && (<p className="text-sm text-destructive">{errors.emailComm}</p>)}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2"><Phone className="h-4 w-4"/> WhatsApp Number *</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <SearchableSelect
-                      id="whatsappCountryCode"
-                      value={formData.whatsappCountryCode || ''}
-                      options={phoneCodes.map(pc => ({
-                        value: pc.dial,
-                        label: pc.label,
-                        icon: <span className="text-lg">{codeToFlagEmoji(pc.code)}</span>,
-                        keywords: [pc.dial, pc.dial.replace('+',''), pc.code, pc.label.split(' (+')[0]]
-                      }))}
-                      placeholder="Country code"
-                      searchPlaceholder="Search by country or code..."
-                      displayField="value"
-                      inlineSearch
-                      onChange={(val)=>handleInputChange('whatsappCountryCode', val)}
-                    />
-                    {errors.whatsappCountryCode && (
-                      <p className="text-sm text-destructive">{errors.whatsappCountryCode}</p>
-                    )}
-                    <div className="col-span-2">
-                      <Input id="phoneWhatsapp" type="tel" placeholder="Phone number" value={formData.phoneWhatsapp} onChange={(e)=>handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
+                  <label className="text-sm font-medium flex items-center gap-2"><Phone className="h-4 w-4" /> WhatsApp Number *</label>
+                  <div className="flex gap-2">
+                    <div className="w-2/5">
+                      <SearchableSelect
+                        id="whatsappCountryCode"
+                        value={formData.whatsappCountryCode || ''}
+                        options={phoneCodes.map(pc => ({
+                          value: pc.dial,
+                          label: pc.label,
+                          icon: <span className="text-lg">{codeToFlagEmoji(pc.code)}</span>,
+                          keywords: [pc.dial, pc.dial.replace('+', ''), pc.code, pc.label.split(' (+')[0]]
+                        }))}
+                        placeholder="Country code"
+                        searchPlaceholder="Search by country or code..."
+                        displayField="value"
+                        inlineSearch
+                        onChange={(val) => handleInputChange('whatsappCountryCode', val)}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input id="phoneWhatsapp" type="tel" placeholder="Phone number" value={formData.phoneWhatsapp} onChange={(e) => handleInputChange('phoneWhatsapp', e.target.value)} className={errors.phoneWhatsapp ? 'border-destructive' : ''} />
                     </div>
                   </div>
+                  {errors.whatsappCountryCode && (
+                    <p className="text-sm text-destructive">{errors.whatsappCountryCode}</p>
+                  )}
                   {errors.phoneWhatsapp && (<p className="text-sm text-destructive">{errors.phoneWhatsapp}</p>)}
                 </div>
               </div>
@@ -755,7 +757,7 @@ export default function CompleteProfilePage() {
                     options={countries.map(c => ({ value: c.isoCode, label: c.name, icon: <span className="text-lg">{codeToFlagEmoji(c.isoCode)}</span> }))}
                     placeholder="Select a country"
                     inlineSearch
-                    onChange={(val)=>handleCountrySelect(val)}
+                    onChange={(val) => handleCountrySelect(val)}
                   />
                   {errors.country && (<p className="text-sm text-destructive">{errors.country}</p>)}
                 </div>
@@ -767,7 +769,7 @@ export default function CompleteProfilePage() {
                     options={states.map(s => ({ value: s.isoCode, label: s.name }))}
                     placeholder="Select a state"
                     inlineSearch
-                    onChange={(val)=>handleStateSelect(val)}
+                    onChange={(val) => handleStateSelect(val)}
                   />
                   {errors.state && (<p className="text-sm text-destructive">{errors.state}</p>)}
                 </div>
@@ -779,13 +781,13 @@ export default function CompleteProfilePage() {
                     options={cities.map(c => ({ value: c.name, label: c.name }))}
                     placeholder="Select a city"
                     inlineSearch
-                    onChange={(val)=>handleCitySelect(val)}
+                    onChange={(val) => handleCitySelect(val)}
                   />
                   {errors.city && (<p className="text-sm text-destructive">{errors.city}</p>)}
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="address" className="text-sm font-medium">Address</label>
-                  <Input id="address" placeholder="Street and area" value={formData.address} onChange={(e)=>handleInputChange('address', e.target.value)} />
+                  <Input id="address" placeholder="Street and area" value={formData.address} onChange={(e) => handleInputChange('address', e.target.value)} />
                 </div>
               </div>
 
@@ -799,7 +801,7 @@ export default function CompleteProfilePage() {
                     options={categoryOptions}
                     placeholder="Select a category"
                     inlineSearch
-                    onChange={(val)=>{ handleInputChange('category', val); setSelectedSubCategories([]) }}
+                    onChange={(val) => { handleInputChange('category', val); setSelectedSubCategories([]) }}
                   />
                   {errors.category && (<p className="text-sm text-destructive">{errors.category}</p>)}
                 </div>
@@ -815,7 +817,7 @@ export default function CompleteProfilePage() {
                       options={availableSubCategories.map(sc => ({ value: sc.name, label: sc.name }))}
                       placeholder="Select a sub-category"
                       inlineSearch
-                      onChange={(val)=>{
+                      onChange={(val) => {
                         if (!val) return
                         const exists = selectedSubCategories.find(sc => sc.name === val)
                         if (exists) return
@@ -837,14 +839,14 @@ export default function CompleteProfilePage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <label className="text-xs text-muted-foreground">Relevant Years</label>
-                              <Input type="number" min={0} value={sc.years} onChange={(e)=>setSubCategoryYears(sc.name, e.target.value)} />
+                              <Input type="number" min={0} value={sc.years} onChange={(e) => setSubCategoryYears(sc.name, e.target.value)} />
                             </div>
                             <div className="flex items-center gap-2">
                               <label className="text-xs text-muted-foreground">Mandatory</label>
-                              <input type="radio" name="mandatory-subcategory" checked={sc.mandatory} onChange={()=>setMandatorySubCategory(sc.name)} />
+                              <input type="radio" name="mandatory-subcategory" checked={sc.mandatory} onChange={() => setMandatorySubCategory(sc.name)} />
                             </div>
                             <div className="flex items-center justify-end">
-                              <Button type="button" variant="outline" size="sm" onClick={()=>{ const next = selectedSubCategories.filter(s => s.name !== sc.name); setSelectedSubCategories(next); if (next.length <= 3) setErrors(prev => ({ ...prev, subCategories: '' })) }}>Remove</Button>
+                              <Button type="button" variant="outline" size="sm" onClick={() => { const next = selectedSubCategories.filter(s => s.name !== sc.name); setSelectedSubCategories(next); if (next.length <= 3) setErrors(prev => ({ ...prev, subCategories: '' })) }}>Remove</Button>
                             </div>
                           </div>
                         ))}
@@ -858,18 +860,18 @@ export default function CompleteProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="yearsExperience" className="text-sm font-medium">Years of Experience (Overall) *</label>
-                  <Input id="yearsExperience" type="number" min={0} value={formData.yearsExperience} onChange={(e)=>handleInputChange('yearsExperience', e.target.value)} className={errors.yearsExperience ? 'border-destructive' : ''} />
+                  <Input id="yearsExperience" type="number" min={0} value={formData.yearsExperience} onChange={(e) => handleInputChange('yearsExperience', e.target.value)} className={errors.yearsExperience ? 'border-destructive' : ''} />
                   {errors.yearsExperience && (<p className="text-sm text-destructive">{errors.yearsExperience}</p>)}
                 </div>
                 {/* Years of Relevant Experience removed as per requirements */}
               </div>
 
-              
+
 
               {/* Detailed Profile */}
               <div className="space-y-2">
                 <label htmlFor="detailedProfileText" className="text-sm font-medium">Detailed Profile</label>
-                <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e)=>handleInputChange('detailedProfileText', e.target.value)} className={errors.detailedProfileText ? 'border-destructive' : ''} />
+                <Textarea id="detailedProfileText" rows={5} placeholder="Provide details if LinkedIn URL is missing" value={formData.detailedProfileText} onChange={(e) => handleInputChange('detailedProfileText', e.target.value)} className={errors.detailedProfileText ? 'border-destructive' : ''} />
                 {errors.detailedProfileText && (<p className="text-sm text-destructive">{errors.detailedProfileText}</p>)}
               </div>
 
@@ -913,29 +915,29 @@ export default function CompleteProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/60 rounded-lg p-4">
                 <div className="space-y-2">
                   <label htmlFor="organisationName" className="text-sm font-medium">Organisation Name</label>
-                  <Input id="organisationName" value={formData.organisationName} onChange={(e)=>handleInputChange('organisationName', e.target.value)} />
+                  <Input id="organisationName" value={formData.organisationName} onChange={(e) => handleInputChange('organisationName', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="designation" className="text-sm font-medium">Designation</label>
-                  <Input id="designation" value={formData.designation} onChange={(e)=>handleInputChange('designation', e.target.value)} />
+                  <Input id="designation" value={formData.designation} onChange={(e) => handleInputChange('designation', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="firmSize" className="text-sm font-medium">Firm Size</label>
-                  <Input id="firmSize" value={formData.firmSize} onChange={(e)=>handleInputChange('firmSize', e.target.value)} />
+                  <Input id="firmSize" value={formData.firmSize} onChange={(e) => handleInputChange('firmSize', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="numPartners" className="text-sm font-medium">Number of Partners</label>
-                  <Input id="numPartners" type="number" min={0} value={formData.numPartners} onChange={(e)=>handleInputChange('numPartners', e.target.value)} />
+                  <Input id="numPartners" type="number" min={0} value={formData.numPartners} onChange={(e) => handleInputChange('numPartners', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="currentOrgFromDate" className="text-sm font-medium">From date</label>
-                  <Input id="currentOrgFromDate" type="date" value={formData.currentOrgFromDate} onChange={(e)=>handleInputChange('currentOrgFromDate', e.target.value)} />
+                  <Input id="currentOrgFromDate" type="date" value={formData.currentOrgFromDate} onChange={(e) => handleInputChange('currentOrgFromDate', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="currentOrgToDate" className="text-sm font-medium">To date</label>
                   <div className="flex items-center gap-2">
-                    <Input id="currentOrgToDate" type="date" value={formData.currentOrgToDate === 'Present' ? '' : (formData.currentOrgToDate || '')} onChange={(e)=>handleInputChange('currentOrgToDate', e.target.value)} disabled={formData.currentOrgToDate === 'Present'} />
-                    <Button type="button" size="sm" variant={formData.currentOrgToDate === 'Present' ? 'secondary' : 'outline'} onClick={()=>handleInputChange('currentOrgToDate', formData.currentOrgToDate === 'Present' ? '' : 'Present')}>Present</Button>
+                    <Input id="currentOrgToDate" type="date" value={formData.currentOrgToDate === 'Present' ? '' : (formData.currentOrgToDate || '')} onChange={(e) => handleInputChange('currentOrgToDate', e.target.value)} disabled={formData.currentOrgToDate === 'Present'} />
+                    <Button type="button" size="sm" variant={formData.currentOrgToDate === 'Present' ? 'secondary' : 'outline'} onClick={() => handleInputChange('currentOrgToDate', formData.currentOrgToDate === 'Present' ? '' : 'Present')}>Present</Button>
                   </div>
                 </div>
               </div>
@@ -948,7 +950,7 @@ export default function CompleteProfilePage() {
                     {/* Add new row button visible only when at least one previous organization exists */}
                     {!!formData.experiences.length && (
                       <div>
-                        <Button type="button" variant="secondary" onClick={()=>setShowNewExperienceForm(true)}>Add new row</Button>
+                        <Button type="button" variant="secondary" onClick={() => setShowNewExperienceForm(true)}>Add new row</Button>
                       </div>
                     )}
                     {/* New organization draft entry with Save (shown when toggled or when none exist) */}
@@ -956,31 +958,31 @@ export default function CompleteProfilePage() {
                       <div className="rounded-lg border border-violet-200 bg-white p-3 grid grid-cols-1 md:grid-cols-2 gap-4 shadow-sm border-l-4 border-l-violet-400">
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Organisation Name</label>
-                          <Input value={newExperience.company} onChange={(e)=>updateNewExperienceField('company', e.target.value)} />
+                          <Input value={newExperience.company} onChange={(e) => updateNewExperienceField('company', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Designation</label>
-                          <Input value={newExperience.title} onChange={(e)=>updateNewExperienceField('title', e.target.value)} />
+                          <Input value={newExperience.title} onChange={(e) => updateNewExperienceField('title', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Firm Size</label>
-                          <Input value={newExperience.firmSize || ''} onChange={(e)=>updateNewExperienceField('firmSize', e.target.value)} />
+                          <Input value={newExperience.firmSize || ''} onChange={(e) => updateNewExperienceField('firmSize', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Number of Partners</label>
-                          <Input type="number" min={0} value={newExperience.numPartners?.toString() || ''} onChange={(e)=>updateNewExperienceField('numPartners', e.target.value)} />
+                          <Input type="number" min={0} value={newExperience.numPartners?.toString() || ''} onChange={(e) => updateNewExperienceField('numPartners', e.target.value)} />
                         </div>
                         {/* Partition line before dates */}
                         <div className="md:col-span-2 h-px bg-violet-200" />
                         <div className="space-y-2">
                           <label className="text-sm font-medium">From date</label>
-                          <Input type="date" value={newExperience.startDate || ''} onChange={(e)=>updateNewExperienceField('startDate', e.target.value)} />
+                          <Input type="date" value={newExperience.startDate || ''} onChange={(e) => updateNewExperienceField('startDate', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">To date</label>
                           <div className="flex items-center gap-2">
-                            <Input type="date" value={newExperience.endDate === 'Present' ? '' : (newExperience.endDate || '')} onChange={(e)=>updateNewExperienceField('endDate', e.target.value)} disabled={newExperience.endDate === 'Present'} />
-                            <Button type="button" size="sm" variant={newExperience.endDate === 'Present' ? 'secondary' : 'outline'} onClick={()=>updateNewExperienceField('endDate', newExperience.endDate === 'Present' ? '' : 'Present')}>Present</Button>
+                            <Input type="date" value={newExperience.endDate === 'Present' ? '' : (newExperience.endDate || '')} onChange={(e) => updateNewExperienceField('endDate', e.target.value)} disabled={newExperience.endDate === 'Present'} />
+                            <Button type="button" size="sm" variant={newExperience.endDate === 'Present' ? 'secondary' : 'outline'} onClick={() => updateNewExperienceField('endDate', newExperience.endDate === 'Present' ? '' : 'Present')}>Present</Button>
                           </div>
                         </div>
                         {/* Partition line before actions */}
@@ -999,37 +1001,37 @@ export default function CompleteProfilePage() {
                       <div key={`prev-exp-${idx}`} className="rounded-lg border border-violet-200 bg-white p-3 grid grid-cols-1 md:grid-cols-2 gap-4 shadow-sm border-l-4 border-l-violet-400">
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Organisation Name</label>
-                          <Input value={exp.company} onChange={(e)=>updateExperienceField(idx, 'company', e.target.value)} />
+                          <Input value={exp.company} onChange={(e) => updateExperienceField(idx, 'company', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Designation</label>
-                          <Input value={exp.title} onChange={(e)=>updateExperienceField(idx, 'title', e.target.value)} />
+                          <Input value={exp.title} onChange={(e) => updateExperienceField(idx, 'title', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Firm Size</label>
-                          <Input value={exp.firmSize || ''} onChange={(e)=>updateExperienceField(idx, 'firmSize', e.target.value)} />
+                          <Input value={exp.firmSize || ''} onChange={(e) => updateExperienceField(idx, 'firmSize', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Number of Partners</label>
-                          <Input type="number" min={0} value={exp.numPartners?.toString() || ''} onChange={(e)=>updateExperienceField(idx, 'numPartners', e.target.value)} />
+                          <Input type="number" min={0} value={exp.numPartners?.toString() || ''} onChange={(e) => updateExperienceField(idx, 'numPartners', e.target.value)} />
                         </div>
                         {/* Partition line before dates */}
                         <div className="md:col-span-2 h-px bg-violet-200" />
                         <div className="space-y-2">
                           <label className="text-sm font-medium">From date</label>
-                          <Input type="date" value={exp.startDate || ''} onChange={(e)=>updateExperienceField(idx, 'startDate', e.target.value)} />
+                          <Input type="date" value={exp.startDate || ''} onChange={(e) => updateExperienceField(idx, 'startDate', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">To date</label>
                           <div className="flex items-center gap-2">
-                            <Input type="date" value={exp.endDate === 'Present' ? '' : (exp.endDate || '')} onChange={(e)=>updateExperienceField(idx, 'endDate', e.target.value)} disabled={exp.endDate === 'Present'} />
-                            <Button type="button" size="sm" variant={exp.endDate === 'Present' ? 'secondary' : 'outline'} onClick={()=>updateExperienceField(idx, 'endDate', exp.endDate === 'Present' ? '' : 'Present')}>Present</Button>
+                            <Input type="date" value={exp.endDate === 'Present' ? '' : (exp.endDate || '')} onChange={(e) => updateExperienceField(idx, 'endDate', e.target.value)} disabled={exp.endDate === 'Present'} />
+                            <Button type="button" size="sm" variant={exp.endDate === 'Present' ? 'secondary' : 'outline'} onClick={() => updateExperienceField(idx, 'endDate', exp.endDate === 'Present' ? '' : 'Present')}>Present</Button>
                           </div>
                         </div>
                         {/* Partition line before actions */}
                         <div className="md:col-span-2 h-px bg-violet-200" />
                         <div>
-                          <Button type="button" variant="outline" onClick={()=>removeExperienceRow(idx)}>Remove row</Button>
+                          <Button type="button" variant="outline" onClick={() => removeExperienceRow(idx)}>Remove row</Button>
                         </div>
                       </div>
                     ))}
@@ -1041,21 +1043,21 @@ export default function CompleteProfilePage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="whyJoin" className="text-sm font-medium">Why do you want to join the network?</label>
-                  <Textarea id="whyJoin" rows={4} value={formData.whyJoin} onChange={(e)=>handleInputChange('whyJoin', e.target.value)} />
+                  <Textarea id="whyJoin" rows={4} value={formData.whyJoin} onChange={(e) => handleInputChange('whyJoin', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="expectations" className="text-sm font-medium">What do you expect from this professional network?</label>
-                  <Textarea id="expectations" rows={4} value={formData.expectations} onChange={(e)=>handleInputChange('expectations', e.target.value)} />
+                  <Textarea id="expectations" rows={4} value={formData.expectations} onChange={(e) => handleInputChange('expectations', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="anythingElse" className="text-sm font-medium">Anything else you want to share?</label>
-                  <Textarea id="anythingElse" rows={4} value={formData.anythingElse} onChange={(e)=>handleInputChange('anythingElse', e.target.value)} />
+                  <Textarea id="anythingElse" rows={4} value={formData.anythingElse} onChange={(e) => handleInputChange('anythingElse', e.target.value)} />
                 </div>
               </div>
 
               {/* Supporting documents upload (custom button with remove) */}
               <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4"/> Upload supporting documents (resume, certifications, etc.,)</label>
+                <label className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4" /> Upload supporting documents (resume, certifications, etc.,)</label>
                 <input ref={docsInputRef} type="file" multiple className="hidden" onChange={handleDocumentsUpload} />
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="secondary" onClick={triggerDocsPicker}>Upload Documents</Button>
@@ -1065,7 +1067,7 @@ export default function CompleteProfilePage() {
                     {formData.documents.map((url) => (
                       <div key={url} className="flex items-center justify-between gap-2 border rounded p-2">
                         <span className="text-sm truncate max-w-[280px]">{url}</span>
-                        <Button type="button" variant="outline" onClick={()=>handleRemoveDocument(url)}>Remove</Button>
+                        <Button type="button" variant="outline" onClick={() => handleRemoveDocument(url)}>Remove</Button>
                       </div>
                     ))}
                   </div>
@@ -1076,37 +1078,37 @@ export default function CompleteProfilePage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Agreements *</label>
                 <div className="flex items-center gap-2">
-                  <Checkbox checked={formData.acceptedRules} onChange={(e)=>handleInputChange('acceptedRules', (e.target as HTMLInputElement).checked)} />
+                  <Checkbox checked={formData.acceptedRules} onChange={(e) => handleInputChange('acceptedRules', (e.target as HTMLInputElement).checked)} />
                   <span className="text-sm">I accept the
                     {' '}
                     <a href="/policies/rules" target="_blank" rel="noopener noreferrer" className="underline">Rules & Regulations</a>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox checked={formData.acceptedPrivacy} onChange={(e)=>handleInputChange('acceptedPrivacy', (e.target as HTMLInputElement).checked)} />
+                  <Checkbox checked={formData.acceptedPrivacy} onChange={(e) => handleInputChange('acceptedPrivacy', (e.target as HTMLInputElement).checked)} />
                   <span className="text-sm">I accept the
                     {' '}
                     <a href="/policies/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>
                   </span>
                 </div>
-              {(errors.acceptedRules || errors.acceptedPrivacy) && (
-                <p className="text-sm text-destructive">Please accept both to proceed</p>
-              )}
-            </div>
-
-            {submitError && (
-              <div className="rounded-md border border-destructive bg-red-50 p-3 text-sm text-destructive">
-                {submitError}
+                {(errors.acceptedRules || errors.acceptedPrivacy) && (
+                  <p className="text-sm text-destructive">Please accept both to proceed</p>
+                )}
               </div>
-            )}
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
-                {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</>) : ('Complete Profile')}
-              </Button>
-              <Button type="button" variant="outline" onClick={handleSkip} disabled={isLoading} className="flex-1">Skip for Now</Button>
-            </div>
+              {submitError && (
+                <div className="rounded-md border border-destructive bg-red-50 p-3 text-sm text-destructive">
+                  {submitError}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
+                  {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</>) : ('Complete Profile')}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleSkip} disabled={isLoading} className="flex-1">Skip for Now</Button>
+              </div>
             </form>
           </CardContent>
         </Card>

@@ -66,6 +66,12 @@ export async function POST(request: NextRequest) {
       ? `${profileData.whatsappCountryCode}${profileData.phoneWhatsapp}`
       : profileData.phoneWhatsapp
 
+    // Sanitize experiences: ensure firmSize is non-empty
+    const sanitizedExperiences = (profileData.experiences || []).map((exp: any) => {
+      const firmSize = exp.firmSize && exp.firmSize.trim() ? exp.firmSize : 'N/A';
+      return { ...exp, firmSize };
+    });
+
     // Upsert into user_profiles table
     const upsertPayload = {
       user_id: user.id,
@@ -87,7 +93,8 @@ export async function POST(request: NextRequest) {
       linkedin_url: profileData.linkedinUrl || '',
       detailed_profile_text: profileData.detailedProfileText || '',
       resume_url: profileData.resumeUrl || '',
-      experiences: profileData.experiences || [],
+
+      experiences: sanitizedExperiences,
       licenses: profileData.licenses || [],
       awards: profileData.awards || [],
       organisation_name: profileData.organisationName || '',

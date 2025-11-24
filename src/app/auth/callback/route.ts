@@ -9,12 +9,12 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
       // Check if user has completed their profile
       const { data: { user } } = await supabase.auth.getUser()
       let redirectPath = next
-      
+
       if (user && !user.user_metadata?.profile_completed) {
         redirectPath = '/profile/complete'
       }
@@ -29,6 +29,12 @@ export async function GET(request: NextRequest) {
       } else {
         return NextResponse.redirect(`${origin}${redirectPath}`)
       }
+    }
+    // If there was an error during the exchange, log it and redirect to an error page
+    if (error) {
+      console.error('Supabase OAuth exchange error:', error)
+      const errorMsg = encodeURIComponent(error.message || 'OAuth error')
+      return NextResponse.redirect(`${origin}/auth/auth-code-error?msg=${errorMsg}`)
     }
   }
 

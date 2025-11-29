@@ -27,6 +27,9 @@ COPY . .
 
 # Environment variables will be provided at runtime via docker-compose.yml
 
+# Generate Prisma Client with correct binary targets
+RUN npx prisma generate
+
 # Build the application (standalone mode)
 RUN npm run build
 

@@ -6,6 +6,9 @@ FROM node:24-alpine AS deps
 
 WORKDIR /app
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
@@ -14,6 +17,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 FROM node:24-alpine AS builder
 
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -37,6 +43,9 @@ RUN npm run build
 FROM node:24-alpine AS runner
 
 WORKDIR /app
+
+# Install OpenSSL for Prisma runtime
+RUN apk add --no-cache openssl
 
 # Don't run production as root
 RUN addgroup --system --gid 1001 nodejs && \

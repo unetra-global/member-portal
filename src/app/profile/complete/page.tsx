@@ -89,7 +89,7 @@ export default function CompleteProfilePage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
   const [isImportSuccess, setIsImportSuccess] = useState(false)
   const [isLinkedInLoading, setIsLinkedInLoading] = useState(false)
   const [linkedInImportMessage, setLinkedInImportMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
@@ -594,7 +594,7 @@ export default function CompleteProfilePage() {
     }
   }
 
-  const validateForm = (): boolean => {
+  const validatePersonalSection = (): boolean => {
     const newErrors: Record<string, string> = {}
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
@@ -609,16 +609,21 @@ export default function CompleteProfilePage() {
     if (!formData.city.trim()) newErrors.city = "City is required"
     if (!formData.state.trim()) newErrors.state = "State is required"
     if (!formData.country.trim()) newErrors.country = "Country is required"
-    if (!formData.category.trim()) newErrors.category = "Category is required"
-    if (!selectedSubCategories.length) newErrors.subCategories = "Select at least one sub-category"
-    if (selectedSubCategories.length > 3) newErrors.subCategories = "You can select a maximum of 3 sub-categories."
-    if (!formData.yearsExperience.trim()) newErrors.yearsExperience = "Years of experience is required"
-    // Years of Relevant Experience no longer required
     if (!formData.linkedinUrl && !formData.detailedProfileText && !formData.resumeUrl) {
       const msg = "Provide LinkedIn profile or detailed profile or resume"
       newErrors.linkedinUrl = msg
       newErrors.detailedProfileText = msg
     }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const validateRegistrationSection = (): boolean => {
+    const newErrors: Record<string, string> = {}
+    if (!formData.category.trim()) newErrors.category = "Category is required"
+    if (!selectedSubCategories.length) newErrors.subCategories = "Select at least one sub-category"
+    if (selectedSubCategories.length > 3) newErrors.subCategories = "You can select a maximum of 3 sub-categories."
+    if (!formData.yearsExperience.trim()) newErrors.yearsExperience = "Years of experience is required"
     if (!formData.acceptedRules) newErrors.acceptedRules = "Please accept rules"
     if (!formData.acceptedPrivacy) newErrors.acceptedPrivacy = "Please accept privacy"
     setErrors(newErrors)
@@ -628,7 +633,7 @@ export default function CompleteProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
+    if (!validateRegistrationSection()) {
       setSubmitError('Please fix the above errors.')
       return
     }
@@ -658,7 +663,7 @@ export default function CompleteProfilePage() {
           company_name: formData.organisationName || "",
           company_linkedin_id: undefined,
           designation: formData.designation || "",
-          firm_size: formData.firmSize || "",
+          firm_size: formData.firmSize || "N/A",
           number_of_partners: Number(formData.numPartners || 0),
           from_date: formData.currentOrgFromDate || new Date().toISOString(),
           to_date: formData.currentOrgToDate && formData.currentOrgToDate !== "Present" ? formData.currentOrgToDate : null,
@@ -672,7 +677,7 @@ export default function CompleteProfilePage() {
             company_name: exp.company || "",
             company_linkedin_id: exp.companyId,
             designation: role.title || "",
-            firm_size: exp.firmSize || "",
+            firm_size: exp.firmSize || "N/A",
             number_of_partners: Number(exp.numPartners || 0),
             from_date: role.startDate || new Date().toISOString(),
             to_date: role.endDate && role.endDate !== "Present" ? role.endDate : null,
@@ -829,12 +834,14 @@ export default function CompleteProfilePage() {
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-semibold flex items-center justify-center gap-2">
               <User className="h-6 w-6" />
-              {currentStep === 1 ? 'Let\'s start with your professional profile' : 'Review and Complete Your Profile'}
+              {currentStep === 1 ? 'Let\'s start with your professional profile' : currentStep === 2 ? 'Personal Information' : 'Registration Details'}
             </CardTitle>
             <CardDescription>
               {currentStep === 1
                 ? 'Import your data from LinkedIn to get a head start'
-                : 'Review the imported information and fill in any missing details'}
+                : currentStep === 2
+                  ? 'Provide your personal and professional details'
+                  : 'Complete your registration information'}
             </CardDescription>
             {/* Simple Stepper */}
             <div className="flex items-center justify-center gap-2 mt-4 text-sm">
@@ -845,7 +852,12 @@ export default function CompleteProfilePage() {
               <div className="w-8 h-px bg-gray-300" />
               <div className={`flex items-center gap-1 ${currentStep >= 2 ? 'text-blue-600 font-medium' : 'text-muted-foreground'}`}>
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${currentStep >= 2 ? 'border-blue-600 bg-blue-50' : 'border-gray-300'}`}>2</div>
-                <span>Review</span>
+                <span>Personal</span>
+              </div>
+              <div className="w-8 h-px bg-gray-300" />
+              <div className={`flex items-center gap-1 ${currentStep >= 3 ? 'text-blue-600 font-medium' : 'text-muted-foreground'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${currentStep >= 3 ? 'border-blue-600 bg-blue-50' : 'border-gray-300'}`}>3</div>
+                <span>Registration</span>
               </div>
             </div>
           </CardHeader>
@@ -969,21 +981,10 @@ export default function CompleteProfilePage() {
               </div>
             )}
 
-            {/* Step 2: Review & Complete Form */}
+            {/* Step 2: Personal Information */}
             {currentStep === 2 && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentStep(1)}
-                    className="text-muted-foreground hover:text-foreground -ml-2"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Import
-                  </Button>
-                </div>
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form className="space-y-6">
                   {/* Profile Photo Upload */}
                   <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex-shrink-0">
@@ -1319,6 +1320,37 @@ export default function CompleteProfilePage() {
                     </details>
                   </div>
 
+
+
+                  {submitError && (
+                    <div className="rounded-md border border-destructive bg-red-50 p-3 text-sm text-destructive">
+                      {submitError}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button
+                      type="button"
+                      className="flex-1 bg-black text-white hover:bg-gray-800 font-medium"
+                      onClick={() => {
+                        if (validatePersonalSection()) {
+                          setCurrentStep(3)
+                        }
+                      }}
+                    >
+                      Next
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleSkip} className="flex-1">Skip for Now</Button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Step 3: Registration */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Category & Sub-Category with linkage and multi-select */}
                   <div className="space-y-4 bg-blue-50/60 rounded-lg p-4">
                     <div className="space-y-2">
@@ -1361,7 +1393,7 @@ export default function CompleteProfilePage() {
                         {!!selectedSubCategories.length && (
                           <div className="space-y-2">
                             {selectedSubCategories.map((sc, idx) => (
-                              <div key={`${sc.name} -${idx} `} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center border border-blue-100 bg-white rounded p-2">
+                              <div key={`${sc.name}-${idx}`} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center border border-blue-100 bg-white rounded p-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-medium text-blue-700">{sc.name}</span>
                                 </div>
@@ -1459,6 +1491,14 @@ export default function CompleteProfilePage() {
 
                   {/* Actions */}
                   <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentStep(2)}
+                      className="flex-1"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                    </Button>
                     <Button type="submit" className="flex-1 bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
                       {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</>) : ('Complete Profile')}
                     </Button>

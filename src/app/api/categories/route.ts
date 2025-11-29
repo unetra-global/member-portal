@@ -5,7 +5,7 @@ const service = new CategoryService();
 
 export async function GET() {
   const data = await service.list();
-  return NextResponse.json(data);
+  return NextResponse.json(data); // test commit 
 }
 
 export async function POST(req: NextRequest) {

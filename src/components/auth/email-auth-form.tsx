@@ -51,7 +51,7 @@ export function EmailAuthForm({ onSuccess, onError }: EmailAuthFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
 
     setIsLoading(true)
@@ -63,7 +63,7 @@ export function EmailAuthForm({ onSuccess, onError }: EmailAuthFormProps) {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/member-portal/auth/callback`,
           },
         })
 

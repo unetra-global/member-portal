@@ -64,16 +64,16 @@ function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError
               </p>
             </div>
           )}
-          
+
           <div className="space-y-2">
             <Button onClick={resetError} className="w-full">
               <RefreshCw className="h-4 w-4 mr-2" />
               Try Again
             </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = '/'}
+
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = '/member-portal'}
               className="w-full"
             >
               Go Home

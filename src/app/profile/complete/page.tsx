@@ -414,7 +414,7 @@ export default function CompleteProfilePage() {
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const res = await fetch(`/api/categories`)
+        const res = await fetch(`/member-portal/api/categories`)
         const data = await res.json()
         const opts: Option[] = (Array.isArray(data) ? data : []).map((c: any) => ({ value: c.name, label: c.name }))
         setCategoryOptions(opts)
@@ -433,7 +433,7 @@ export default function CompleteProfilePage() {
         return
       }
       try {
-        const res = await fetch(`/api/services`)
+        const res = await fetch(`/member-portal/api/services`)
         const data = await res.json()
         const filtered = (Array.isArray(data) ? data : []).filter((s: any) => s?.category?.name === formData.category)
         setAvailableSubCategories(filtered.map((s: any) => ({ name: s.name })))
@@ -485,7 +485,7 @@ export default function CompleteProfilePage() {
     setIsLinkedInLoading(true)
     setLinkedInImportMessage(null) // Clear previous messages
     try {
-      const response = await fetch('/api/linkedin/fetch-profile', {
+      const response = await fetch('/member-portal/api/linkedin/fetch-profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -720,7 +720,7 @@ export default function CompleteProfilePage() {
         member_services: memberServices,
       }
 
-      const response = await fetch(`/api/members`, {
+      const response = await fetch(`/member-portal/api/members`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

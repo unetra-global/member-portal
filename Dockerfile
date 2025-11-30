@@ -68,6 +68,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 # Switch to non-root user
 USER nextjs
 
+ENV HOSTNAME="0.0.0.0"
 EXPOSE 3000
 
 # Start the application using standalone server

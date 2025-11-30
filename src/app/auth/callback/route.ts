@@ -21,23 +21,27 @@ export async function GET(request: NextRequest) {
 
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
       const isLocalEnv = process.env.NODE_ENV === 'development'
+      const basePath = '/member-portal'
+
       if (isLocalEnv) {
         // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${redirectPath}`)
+        return NextResponse.redirect(`${origin}${basePath}${redirectPath}`)
       } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`)
+        return NextResponse.redirect(`https://${forwardedHost}${basePath}${redirectPath}`)
       } else {
-        return NextResponse.redirect(`${origin}${redirectPath}`)
+        return NextResponse.redirect(`${origin}${basePath}${redirectPath}`)
       }
     }
     // If there was an error during the exchange, log it and redirect to an error page
     if (error) {
       console.error('Supabase OAuth exchange error:', error)
       const errorMsg = encodeURIComponent(error.message || 'OAuth error')
-      return NextResponse.redirect(`${origin}/auth/auth-code-error?msg=${errorMsg}`)
+      const basePath = '/member-portal'
+      return NextResponse.redirect(`${origin}${basePath}/auth/auth-code-error?msg=${errorMsg}`)
     }
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  const basePath = '/member-portal'
+  return NextResponse.redirect(`${origin}${basePath}/auth/auth-code-error`)
 }

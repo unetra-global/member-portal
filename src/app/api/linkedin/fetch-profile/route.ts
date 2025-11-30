@@ -47,14 +47,25 @@ export async function POST(request: NextRequest) {
     })
 
     if (!n8nResponse.ok) {
-      console.error('n8n webhook failed:', n8nResponse.status, n8nResponse.statusText)
+      const errorText = await n8nResponse.text()
+      console.error('n8n webhook failed:', n8nResponse.status, n8nResponse.statusText, errorText)
       return NextResponse.json(
-        { error: 'Failed to fetch LinkedIn data' },
+        { error: `Failed to fetch LinkedIn data: ${n8nResponse.statusText}` },
         { status: 502 }
       )
     }
 
-    const linkedinResponse = await n8nResponse.json()
+    let linkedinResponse
+    try {
+      linkedinResponse = await n8nResponse.json()
+    } catch (jsonError) {
+      const responseText = await n8nResponse.text()
+      console.error('n8n webhook returned non-JSON response:', responseText)
+      return NextResponse.json(
+        { error: 'N8N webhook returned invalid response. Check webhook configuration.' },
+        { status: 502 }
+      )
+    }
 
     // n8n returns an array with a single object, extract it
     const linkedinData = Array.isArray(linkedinResponse) ? linkedinResponse[0] : linkedinResponse

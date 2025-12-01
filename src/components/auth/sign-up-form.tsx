@@ -56,7 +56,7 @@ export function SignUpForm({ onSuccess, onError }: SignUpFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -75,7 +75,7 @@ export function SignUpForm({ onSuccess, onError }: SignUpFormProps) {
       } else {
         onSuccess?.(formData.email)
       }
-    } catch (error) {
+    } catch {
       onError?.("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
@@ -106,165 +106,167 @@ export function SignUpForm({ onSuccess, onError }: SignUpFormProps) {
 
       {/* Email Sign Up Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Email Field */}
-      <div className="space-y-2">
-        <label htmlFor="signup-email" className="sr-only">
-          Email address
-        </label>
-        <Input
-          id="signup-email"
-          type="email"
-          placeholder="Enter your email"
-          value={formData.email}
-          onChange={(e) => handleInputChange("email", e.target.value)}
-          disabled={isLoading}
-          className={errors.email ? "border-destructive" : ""}
-          aria-invalid={!!errors.email}
-          aria-describedby={errors.email ? "signup-email-error" : undefined}
-          autoComplete="email"
-          required
-        />
-        {errors.email && (
-          <p id="signup-email-error" className="text-sm text-destructive" role="alert">
-            {errors.email}
-          </p>
-        )}
-      </div>
-
-      {/* Password Field */}
-      <div className="space-y-2">
-        <label htmlFor="signup-password" className="sr-only">
-          Password
-        </label>
-        <div className="relative">
+        {/* Email Field */}
+        <div className="space-y-2">
+          <label htmlFor="signup-email" className="sr-only">
+            Email address
+          </label>
           <Input
-            id="signup-password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Create a password"
-            value={formData.password}
-            onChange={(e) => handleInputChange("password", e.target.value)}
+            id="signup-email"
+            type="email"
+            placeholder="Enter your email"
+            value={formData.email}
+            onChange={(e) => handleInputChange("email", e.target.value)}
             disabled={isLoading}
-            className={errors.password ? "border-destructive pr-10" : "pr-10"}
-            aria-invalid={!!errors.password}
-            aria-describedby={errors.password ? "signup-password-error" : "password-strength"}
-            autoComplete="new-password"
+            className={errors.email ? "border-destructive" : ""}
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "signup-email-error" : undefined}
+            autoComplete="email"
             required
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            tabIndex={0}
-          >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
+          {errors.email && (
+            <p id="signup-email-error" className="text-sm text-destructive" role="alert">
+              {errors.email}
+            </p>
+          )}
         </div>
-        
-        {/* Password Strength Indicator */}
-        {formData.password && (
-          <div className="space-y-1">
-            <div className="flex gap-1">
-              {[1, 2, 3].map((level) => (
-                <div
-                  key={level}
-                  className={`h-1 flex-1 rounded-full ${
-                    level <= passwordStrength.strength
+
+        {/* Password Field */}
+        <div className="space-y-2">
+          <label htmlFor="signup-password" className="sr-only">
+            Password
+          </label>
+          <div className="relative">
+            <Input
+              id="signup-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Create a password"
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
+              disabled={isLoading}
+              className={errors.password ? "border-destructive pr-10" : "pr-10"}
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "signup-password-error" : "password-strength"}
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              tabIndex={0}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          {/* Password Strength Indicator */}
+          {formData.password && (
+            <div className="space-y-1">
+              <div className="flex gap-1">
+                {[1, 2, 3].map((level) => (
+                  <div
+                    key={level}
+                    className={`h-1 flex-1 rounded-full ${level <= passwordStrength.strength
                       ? passwordStrength.strength === 1
                         ? "bg-red-500"
                         : passwordStrength.strength === 2
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
                       : "bg-muted"
-                  }`}
-                />
-              ))}
+                      }`}
+                  />
+                ))}
+              </div>
+              <p id="password-strength" className="text-xs text-muted-foreground">
+                Password strength: {passwordStrength.text}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.
+              </p>
             </div>
-            <p id="password-strength" className="text-xs text-muted-foreground">
-              Password strength: {passwordStrength.text}
+          )}
+
+          {errors.password && (
+            <p id="signup-password-error" className="text-sm text-destructive" role="alert">
+              {errors.password}
             </p>
-          </div>
-        )}
-        
-        {errors.password && (
-          <p id="signup-password-error" className="text-sm text-destructive" role="alert">
-            {errors.password}
-          </p>
-        )}
-      </div>
-
-      {/* Confirm Password Field */}
-      <div className="space-y-2">
-        <label htmlFor="signup-confirm-password" className="sr-only">
-          Confirm password
-        </label>
-        <div className="relative">
-          <Input
-            id="signup-confirm-password"
-            type={showConfirmPassword ? "text" : "password"}
-            placeholder="Confirm your password"
-            value={formData.confirmPassword}
-            onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-            disabled={isLoading}
-            className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
-            aria-invalid={!!errors.confirmPassword}
-            aria-describedby={errors.confirmPassword ? "signup-confirm-password-error" : undefined}
-            autoComplete="new-password"
-            required
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-            tabIndex={0}
-          >
-            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
+          )}
         </div>
-        
-        {/* Password Match Indicator */}
-        {formData.confirmPassword && formData.password && (
-          <div className="flex items-center gap-2 text-xs">
-            {formData.password === formData.confirmPassword ? (
-              <>
-                <CheckCircle size={12} className="text-green-500" />
-                <span className="text-green-600">Passwords match</span>
-              </>
-            ) : (
-              <>
-                <div className="w-3 h-3 rounded-full border-2 border-red-500" />
-                <span className="text-red-600">Passwords don't match</span>
-              </>
-            )}
+
+        {/* Confirm Password Field */}
+        <div className="space-y-2">
+          <label htmlFor="signup-confirm-password" className="sr-only">
+            Confirm password
+          </label>
+          <div className="relative">
+            <Input
+              id="signup-confirm-password"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm your password"
+              value={formData.confirmPassword}
+              onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+              disabled={isLoading}
+              className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
+              aria-invalid={!!errors.confirmPassword}
+              aria-describedby={errors.confirmPassword ? "signup-confirm-password-error" : undefined}
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              tabIndex={0}
+            >
+              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
-        )}
-        
-        {errors.confirmPassword && (
-          <p id="signup-confirm-password-error" className="text-sm text-destructive" role="alert">
-            {errors.confirmPassword}
-          </p>
-        )}
-      </div>
 
-      {/* Terms and Conditions */}
-      <div className="text-xs text-muted-foreground">
-        By creating an account, you agree to our{" "}
-        <a href="#" className="underline hover:text-foreground">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="#" className="underline hover:text-foreground">
-          Privacy Policy
-        </a>
-      </div>
+          {/* Password Match Indicator */}
+          {formData.confirmPassword && formData.password && (
+            <div className="flex items-center gap-2 text-xs">
+              {formData.password === formData.confirmPassword ? (
+                <>
+                  <CheckCircle size={12} className="text-green-500" />
+                  <span className="text-green-600">Passwords match</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-3 h-3 rounded-full border-2 border-red-500" />
+                  <span className="text-red-600">Passwords don&apos;t match</span>
+                </>
+              )}
+            </div>
+          )}
 
-      {/* Submit Button */}
-      <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Create Account
-      </Button>
-    </form>
+          {errors.confirmPassword && (
+            <p id="signup-confirm-password-error" className="text-sm text-destructive" role="alert">
+              {errors.confirmPassword}
+            </p>
+          )}
+        </div>
+
+        {/* Terms and Conditions */}
+        <div className="text-xs text-muted-foreground">
+          By creating an account, you agree to our{" "}
+          <a href="#" className="underline hover:text-foreground">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="#" className="underline hover:text-foreground">
+            Privacy Policy
+          </a>
+        </div>
+
+        {/* Submit Button */}
+        <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800 font-medium" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Account
+        </Button>
+      </form>
     </div>
   )
 }

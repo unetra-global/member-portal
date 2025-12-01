@@ -2,7 +2,7 @@
 # Uses Next standalone output to keep the final image minimal
 
 # ---- Dependencies & Build ----
-FROM node:24-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # ---- Builder ----
-FROM node:24-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---- Runtime ----
-FROM node:24-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 

@@ -1,7 +1,7 @@
 import { MemberRepository } from "@/server/repositories/memberRepository";
 import { ServicesRepository } from "@/server/repositories/servicesRepository";
 import { MemberCreateSchema, MemberUpdateSchema, validate } from "@/server/validation/schemas";
-import type { Member } from "@prisma/client";
+import { Member } from "@prisma/client";
 
 export class MembersService {
   private repo = new MemberRepository();
@@ -22,15 +22,28 @@ export class MembersService {
     if (existing) {
       throw new Error("email: already registered");
     }
-    const { member_services, ...memberData } = data as any;
+
+    const { member_services, ...memberData } = data;
+
+    // Transform Date objects in experience to strings for Prisma JSON compatibility
+    const experience = memberData.experience?.map(exp => ({
+      ...exp,
+      from_date: exp.from_date.toISOString(),
+      to_date: exp.to_date?.toISOString(),
+    }));
+
+    // user_id is optional in schema but required in DB. Fallback to email if not provided.
     const ensuredMemberData = {
       ...memberData,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      experience: experience as any, // Cast to any to satisfy the strict JsonValue type expected by MemberRepository
       user_id: memberData.user_id ?? memberData.email,
+      end_date: memberData.end_date ?? null,
     };
 
     // If service names provided, resolve to IDs and create pivot rows atomically
-    if (Array.isArray(member_services) && member_services.length > 0) {
-      const names = member_services.map((s: any) => String(s.service_name).trim());
+    if (member_services && member_services.length > 0) {
+      const names = member_services.map((s) => s.service_name.trim());
       const uniqueNames = Array.from(new Set(names));
       const services = await this.servicesRepo.findManyByNames(uniqueNames);
 
@@ -46,11 +59,11 @@ export class MembersService {
 
       const seenServiceIds = new Set<string>();
       const pivots = member_services
-        .map((s: any) => ({
-          service_id: availableByName.get(String(s.service_name).trim())!,
-          is_preferred: Boolean(s.is_preferred),
-          is_active: Boolean(s.is_active),
-          relevant_years_experience: Number(s.relevant_years_experience),
+        .map((s) => ({
+          service_id: availableByName.get(s.service_name.trim())!,
+          is_preferred: s.is_preferred,
+          is_active: s.is_active,
+          relevant_years_experience: s.relevant_years_experience,
         }))
         // Deduplicate repeated service names in the payload
         .filter((p) => {
@@ -59,11 +72,11 @@ export class MembersService {
           return true;
         });
 
-      return this.repo.createWithMemberServices(ensuredMemberData as Omit<Member, "id">, pivots);
+      return this.repo.createWithMemberServices(ensuredMemberData, pivots);
     }
 
     // Fallback to simple member create if no services provided
-    return this.repo.create(ensuredMemberData as Omit<Member, "id">);
+    return this.repo.create(ensuredMemberData);
   }
 
   async update(id: string, payload: unknown): Promise<Member> {

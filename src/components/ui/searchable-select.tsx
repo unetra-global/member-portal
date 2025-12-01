@@ -82,7 +82,7 @@ export function SearchableSelect({
     return () => document.removeEventListener("mousedown", onDocClick)
   }, [])
 
-  const onKeyDown = (e: React.KeyboardEvent<any>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (!open) return
     if (e.key === "ArrowDown") {
       e.preventDefault()
@@ -107,7 +107,7 @@ export function SearchableSelect({
   React.useEffect(() => {
     const display = selected ? (displayField === "value" ? selected.value : selected.label) : ""
     if (!isTyping) setInputValue(display)
-  }, [selected?.value, selected?.label, displayField, isTyping])
+  }, [selected, selected?.value, selected?.label, displayField, isTyping])
 
   const commitSelection = (val: string) => {
     onChange(val)

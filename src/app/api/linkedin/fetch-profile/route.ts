@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     let linkedinResponse
     try {
       linkedinResponse = await n8nResponse.json()
-    } catch (jsonError) {
+    } catch {
       const responseText = await n8nResponse.text()
       console.error('n8n webhook returned non-JSON response:', responseText)
       return NextResponse.json(
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find current company (where endDate is "Present")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const currentExperience = linkedinData.experience?.find((exp: any) =>
       exp.endDate?.text === 'Present' || exp.endDate?.text === 'present'
     )
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
     const locationParsed = linkedinData.location?.parsed || {}
 
     // Helper function to format dates as YYYY-MM
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formatMonthYear = (dateObj: any) => {
       if (!dateObj) return ''
       if (dateObj.text === 'Present' || dateObj.text === 'present') return 'Present'
@@ -138,11 +140,13 @@ export async function POST(request: NextRequest) {
       // Group experiences by company and map to new structure
       experiences: (() => {
         const allExperiences = linkedinData.experience || []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pastExperiences = allExperiences.filter((exp: any) =>
           exp.endDate?.text !== 'Present' && exp.endDate?.text !== 'present'
         )
 
         // Helper function to format dates as YYYY-MM
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formatMonthYear = (dateObj: any) => {
           if (!dateObj) return ''
           if (dateObj.text === 'Present' || dateObj.text === 'present') return 'Present'
@@ -164,8 +168,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Group by company
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const companyMap = new Map<string, any>()
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pastExperiences.forEach((exp: any) => {
           const key = exp.companyId || exp.companyName || 'Unknown'
 
@@ -197,12 +203,14 @@ export async function POST(request: NextRequest) {
         }
 
         companyMap.forEach(company => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           company.roles.sort((a: any, b: any) => {
             const yearDiff = b._sortYear - a._sortYear
             if (yearDiff !== 0) return yearDiff
             return (monthMap[b._sortMonth] || 0) - (monthMap[a._sortMonth] || 0)
           })
           // Remove sort fields
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
           company.roles = company.roles.map(({ _sortYear, _sortMonth, ...role }: any) => role)
         })
 
@@ -215,6 +223,7 @@ export async function POST(request: NextRequest) {
       })(),
 
       // Map certifications/licenses
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       licenses: (linkedinData.certifications || []).map((cert: any) => ({
         name: cert.name || cert.title || '',
         issuer: cert.issuer || cert.organization || cert.issuedBy || '',
@@ -223,6 +232,7 @@ export async function POST(request: NextRequest) {
       })),
 
       // Map honors and awards
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       awards: (linkedinData.honorsAndAwards || []).map((award: any) => ({
         title: award.title || award.name || '',
         date: award.issuedAt || award.date || '',

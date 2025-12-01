@@ -48,7 +48,7 @@ model Services {
 
 model Member {
   id                       String       @id @default(uuid()) @db.Uuid
-  user_id                  String       @db.Text
+  user_id                  String       @unique @db.Text
   first_name               String       @db.Text
   last_name                String       @db.Text
   email                    String       @unique @db.Text

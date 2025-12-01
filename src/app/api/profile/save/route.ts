@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Validate subCategories constraints: 1 mandatory + up to 2 optional (max 3 total)
     const subCategories = Array.isArray(profileData.subCategories) ? profileData.subCategories : []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mandatoryCount = subCategories.filter((sc: any) => !!sc.mandatory).length
     if (subCategories.length < 1 || subCategories.length > 3 || mandatoryCount < 1) {
       return NextResponse.json(
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       : profileData.phoneWhatsapp
 
     // Sanitize experiences: ensure firmSize is non-empty
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sanitizedExperiences = (profileData.experiences || []).map((exp: any) => {
       const firmSize = exp.firmSize && exp.firmSize.trim() ? exp.firmSize : 'N/A';
       return { ...exp, firmSize };
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       category: profileData.category,
       // For backward compatibility, store the mandatory subcategory name in sub_category
       sub_category:
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (subCategories.find((sc: any) => !!sc.mandatory)?.name || subCategories[0]?.name || ''),
       // Store full selection with per-subcategory years in JSONB
       sub_categories: subCategories,

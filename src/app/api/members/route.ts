@@ -13,9 +13,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const created = await service.create(body);
     return NextResponse.json(created, { status: 201 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
-    const msg = err.message ?? "Bad Request";
-    const status = msg.includes("already registered") ? 409 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: err.message ?? "Bad Request" }, { status: 400 });
   }
 }

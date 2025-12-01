@@ -46,7 +46,7 @@ export function SignInForm({ onSuccess, onError }: SignInFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -76,7 +76,7 @@ export function SignInForm({ onSuccess, onError }: SignInFormProps) {
       } else {
         onSuccess?.()
       }
-    } catch (error) {
+    } catch {
       const errorMessage = 'An unexpected error occurred. Please try again.'
       setErrors(prev => ({
         ...prev,

@@ -13,8 +13,7 @@ interface EmailAuthFormProps {
 
 export function EmailAuthForm({ onSuccess, onError }: EmailAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+
   const [isSignUp, setIsSignUp] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -84,7 +83,7 @@ export function EmailAuthForm({ onSuccess, onError }: EmailAuthFormProps) {
           onSuccess?.()
         }
       }
-    } catch (error) {
+    } catch {
       onError?.("An unexpected error occurred")
     } finally {
       setIsLoading(false)
@@ -203,7 +202,7 @@ export function EmailAuthForm({ onSuccess, onError }: EmailAuthFormProps) {
         >
           {isSignUp
             ? "Already have an account? Sign in"
-            : "Don't have an account? Sign up"}
+            : "Don&apos;t have an account? Sign up"}
         </button>
       </div>
     </form>

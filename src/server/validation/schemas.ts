@@ -94,17 +94,24 @@ export const MemberServiceBaseSchema = z.object({
 export const MemberServiceCreateSchema = MemberServiceBaseSchema.omit({ id: true });
 export const MemberServiceUpdateSchema = MemberServiceBaseSchema.partial().extend({ id: z.string().uuid() });
 
+export class ValidationError extends Error {
+  public validation: z.ZodError;
+
+  constructor(message: string, validation: z.ZodError) {
+    super(message);
+    this.name = "ValidationError";
+    this.validation = validation;
+  }
+}
+
 // Utility to parse and validate with standardized error messages
-export function validate<T extends z.ZodTypeAny>(schema: T, data: unknown) {
+export function validate<T extends z.ZodTypeAny>(schema: T, data: unknown): z.infer<T> {
   const parsed = schema.safeParse(data);
   if (!parsed.success) {
     const message = parsed.error.errors
       .map((e) => `${e.path.join(".")}: ${e.message}`)
       .join("; ");
-    const error = new Error(message);
-    // Attach validation details for structured logging if needed
-    (error as any).validation = parsed.error;
-    throw error;
+    throw new ValidationError(message, parsed.error);
   }
-  return parsed.data as z.infer<T>;
+  return parsed.data;
 }

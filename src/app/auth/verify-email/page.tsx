@@ -26,7 +26,7 @@ function VerifyEmailContent() {
               Please check your email to verify your account
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start">
@@ -36,7 +36,7 @@ function VerifyEmailContent() {
                     Verification email sent
                   </p>
                   <p className="text-blue-700">
-                    We've sent a verification link to{" "}
+                    We&apos;ve sent a verification link to{" "}
                     {email ? (
                       <span className="font-medium">{email}</span>
                     ) : (
@@ -49,7 +49,7 @@ function VerifyEmailContent() {
             </div>
 
             <div className="text-sm text-gray-600 space-y-2">
-              <p className="font-medium">What's next?</p>
+              <p className="font-medium">What&apos;s next?</p>
               <ul className="list-disc list-inside space-y-1 text-gray-500">
                 <li>Check your email inbox (and spam folder)</li>
                 <li>Click the verification link in the email</li>
@@ -64,9 +64,9 @@ function VerifyEmailContent() {
                   Back to Sign In
                 </Link>
               </Button>
-              
+
               <p className="text-xs text-center text-gray-500">
-                Didn't receive the email?{" "}
+                Didn&apos;t receive the email?{" "}
                 <button className="text-blue-600 hover:text-blue-500 font-medium">
                   Resend verification email
                 </button>

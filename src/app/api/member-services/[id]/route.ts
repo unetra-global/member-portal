@@ -16,6 +16,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const updated = await service.update(id, body);
     return NextResponse.json(updated);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message ?? "Bad Request" }, { status: 400 });
   }
@@ -26,6 +27,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     await service.delete(id);
     return NextResponse.json({ ok: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return NextResponse.json({ error: err.message ?? "Bad Request" }, { status: 400 });
   }

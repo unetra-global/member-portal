@@ -1,6 +1,6 @@
 # Unetra Global - Authentication App
 
-A modern, secure authentication application built with Next.js 15, Supabase, and Tailwind CSS. Features LinkedIn SSO and email/password authentication with a beautiful, accessible UI.
+A modern, secure authentication application built with Next.js 16, Supabase, and Tailwind CSS. Features LinkedIn SSO and email/password authentication with a beautiful, accessible UI.
 
 ## 🚀 Features
 
@@ -30,7 +30,7 @@ A modern, secure authentication application built with Next.js 15, Supabase, and
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 15 with App Router
+- **Framework**: Next.js 16 with App Router
 - **Authentication**: Supabase Auth
 - **Styling**: Tailwind CSS v4
 - **UI Components**: Custom components with Radix UI primitives
@@ -71,6 +71,9 @@ A modern, secure authentication application built with Next.js 15, Supabase, and
    # Next.js Configuration
    NEXTAUTH_URL=http://localhost:3000
    NEXTAUTH_SECRET=your_nextauth_secret_key_here
+   
+   # App Configuration
+   NEXT_PUBLIC_BASE_PATH=/member-portal
    ```
 
 4. **Set up Supabase**
@@ -194,6 +197,9 @@ npm run type-check
 
 # Build verification
 npm run build
+
+# Run unit tests
+npm test
 ```
 
 ## 🔒 Security Considerations

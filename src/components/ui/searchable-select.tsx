@@ -11,7 +11,7 @@ interface SearchableSelectProps {
   id?: string
   className?: string
   options: Option[]
-  value: string // test
+  value: string
   placeholder?: string
   searchPlaceholder?: string
   onChange: (value: string) => void
@@ -44,30 +44,16 @@ export function SearchableSelect({
   const selected = React.useMemo(() => options.find(o => o.value === value), [options, value])
 
   const filtered = React.useMemo(() => {
-    if (!query.trim()) return options
-    const q = query.toLowerCase()
-    const qAlpha = q.replace(/[^a-z]/gi, "")
-    const qDigits = q.replace(/[^0-9+]/g, "")
-    const isDigitQuery = !!qDigits
-    if (isDigitQuery) {
-      const normalized = qDigits.startsWith("+") ? qDigits : `+${qDigits}`
-      const exact = options.filter(o => {
-        const valueDigits = (o.value || "").replace(/[^0-9+]/g, "")
-        const labelDigits = o.label.match(/\(\+\d+\)/)?.[0] || ""
-        return valueDigits === normalized || labelDigits === `(${normalized})`
-      })
-      if (exact.length > 0) return exact
-      // Fallback to prefix match (avoid broad substring matches)
-      return options.filter(o => {
-        const valueDigits = (o.value || "").replace(/[^0-9+]/g, "")
-        return valueDigits.startsWith(normalized)
-      })
-    }
-    // Alpha query: match label and keywords
+    const q = query.toLowerCase().trim()
+
+    if (!q) return options
+
     return options.filter(o => {
-      const inAlphaLabel = o.label.toLowerCase().includes(qAlpha)
-      const inAlphaKeywords = (o.keywords || []).some(k => (k || "").toLowerCase().includes(qAlpha))
-      return inAlphaLabel || inAlphaKeywords
+      const inLabel = o.label.toLowerCase().includes(q)
+      const inValue = (o.value || "").toLowerCase().includes(q)
+      const inKeywords = (o.keywords || []).some(k => (k || "").toLowerCase().includes(q))
+
+      return inLabel || inValue || inKeywords
     })
   }, [options, query])
 
@@ -194,7 +180,7 @@ export function SearchableSelect({
               const isActive = i === highlight
               return (
                 <div
-                  key={o.value}
+                  key={o.label}
                   role="option"
                   aria-selected={isSelected}
                   className={cn(

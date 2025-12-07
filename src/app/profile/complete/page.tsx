@@ -170,6 +170,58 @@ export default function CompleteProfilePage() {
     }
   }, [user, loading, router])
 
+  // Redirect users who have already completed their profile to dashboard
+  useEffect(() => {
+    if (user && user.user_metadata?.profile_completed) {
+      router.push('/dashboard')
+    }
+  }, [user, router])
+
+  // Helper to split phone number into code and local part
+  const splitPhoneNumber = (fullNumber: string) => {
+    if (!fullNumber) return { code: "", number: "" }
+
+    // Clean the number
+    const clean = fullNumber.trim()
+
+    // Sort codes by length descending to match longest prefix first (e.g. match +971 before +9)
+    const sortedCodes = [...phoneCodes].sort((a, b) => b.dial.length - a.dial.length)
+
+    for (const pc of sortedCodes) {
+      if (clean.startsWith(pc.dial)) {
+        return {
+          code: pc.dial,
+          number: clean.slice(pc.dial.length).trim()
+        }
+      }
+    }
+
+    // Fallback: if starts with +, keep it in code? No, we need valid code.
+    // If no match found, put everything in number (user will have to select code manually)
+    return { code: "", number: clean }
+  }
+
+  // Autofill email and phone from authenticated user
+  useEffect(() => {
+    if (user?.email && !formData.emailComm) {
+      setFormData(prev => ({ ...prev, emailComm: user.email! }))
+    }
+
+    // Check for phone in user object or metadata
+    const userPhone = user?.phone || user?.user_metadata?.phone || user?.user_metadata?.phone_number
+    if (userPhone && !formData.phoneWhatsapp && !formData.whatsappCountryCode && phoneCodes.length > 0) {
+      const { code, number } = splitPhoneNumber(userPhone)
+      if (code || number) {
+        setFormData(prev => ({
+          ...prev,
+          whatsappCountryCode: code,
+          phoneWhatsapp: number
+        }))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, phoneCodes.length])
+
   // Initialize countries and phone codes
   useEffect(() => {
     try {
@@ -228,30 +280,63 @@ export default function CompleteProfilePage() {
 
   // Country/State/City handlers
   const handleCountrySelect = (value: string) => {
+    console.log('[handleCountrySelect] Called with country ISO code:', value)
+
     const country = countries.find(c => c.isoCode === value)
+    console.log('[handleCountrySelect] Found country:', country)
+
     setSelectedCountryCode(value)
+    console.log('[handleCountrySelect] Set selectedCountryCode to:', value)
+
     handleInputChange('country', country?.name || '')
     // Load states
     try {
       const csStates = State.getStatesOfCountry(value) || []
+      console.log('[handleCountrySelect] Loaded states:', csStates.length, 'states')
+
       setStates(csStates.map((s: any) => ({ name: s.name, isoCode: s.isoCode })))
       setSelectedStateCode("")
       setCities([])
       handleInputChange('state', '')
       handleInputChange('city', '')
-    } catch { }
+    } catch (e) {
+      console.error('[handleCountrySelect] Error loading states:', e)
+    }
   }
 
-  const handleStateSelect = (value: string) => {
+  const handleStateSelect = (value: string, countryCodeOverride?: string, stateNameOverride?: string) => {
+    const effectiveCountryCode = countryCodeOverride || selectedCountryCode
+
+    console.log('[handleStateSelect] Called with:', {
+      stateIsoCode: value,
+      countryCodeOverride,
+      stateNameOverride,
+      selectedCountryCode,
+      effectiveCountryCode,
+      statesArrayLength: states.length
+    })
+
     const state = states.find(s => s.isoCode === value)
+    const stateName = stateNameOverride || state?.name || ''
+    console.log('[handleStateSelect] Found state:', state, 'Using stateName:', stateName)
+
     setSelectedStateCode(value)
-    handleInputChange('state', state?.name || '')
+    handleInputChange('state', stateName)
     // Load cities
     try {
-      const csCities = City.getCitiesOfState(selectedCountryCode, value) || []
+      console.log('[handleStateSelect] Calling City.getCitiesOfState with:', {
+        countryCode: effectiveCountryCode,
+        stateCode: value
+      })
+
+      const csCities = City.getCitiesOfState(effectiveCountryCode, value) || []
+      console.log('[handleStateSelect] Got cities:', csCities.length, 'cities')
+
       setCities(csCities.map((c: any) => ({ name: c.name })))
       handleInputChange('city', '')
-    } catch { }
+    } catch (e) {
+      console.error('[handleStateSelect] Error:', e)
+    }
   }
 
   // Experiences controls (Previous organization details)
@@ -525,7 +610,20 @@ export default function CompleteProfilePage() {
           lastName: prev.lastName || linkedinData.lastName || '',
           linkedinUrl: prev.linkedinUrl || linkedinData.linkedinUrl || '',
           emailComm: prev.emailComm || linkedinData.email || '',
-          phoneWhatsapp: prev.phoneWhatsapp || linkedinData.phone || '',
+          // Phone splitting logic
+          ...(() => {
+            const phoneStr = linkedinData.phone || ''
+            if (phoneStr && !prev.phoneWhatsapp) {
+              const { code, number } = splitPhoneNumber(phoneStr)
+              return {
+                whatsappCountryCode: prev.whatsappCountryCode || code,
+                phoneWhatsapp: number
+              }
+            }
+            return {
+              phoneWhatsapp: prev.phoneWhatsapp || ''
+            }
+          })(),
           organisationName: prev.organisationName || linkedinData.organisationName || '',
           designation: prev.designation || linkedinData.designation || '',
 
@@ -556,7 +654,7 @@ export default function CompleteProfilePage() {
                 const statesList = State.getStatesOfCountry(countryObj.isoCode)
                 const stateObj = statesList.find(s => s.name === linkedinData.state)
                 if (stateObj) {
-                  handleStateSelect(stateObj.isoCode)
+                  handleStateSelect(stateObj.isoCode, countryObj.isoCode, stateObj.name)
 
                   // Finally select city
                   setTimeout(() => {
@@ -1285,23 +1383,25 @@ export default function CompleteProfilePage() {
                               </div>
 
                               {exp.roles.map((role, rIdx) => (
-                                <div key={`role-${idx}-${rIdx}`} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-gray-50 p-3 rounded-md relative group">
-                                  <div className="md:col-span-4 space-y-1">
-                                    <label className="text-xs text-muted-foreground">Designation</label>
-                                    <Input value={role.title} onChange={(e) => updateExperienceRoleField(idx, rIdx, 'title', e.target.value)} className="h-8 text-sm" />
-                                  </div>
-                                  <div className="md:col-span-3 space-y-1">
-                                    <label className="text-xs text-muted-foreground">From</label>
-                                    <Input type="month" value={role.startDate || ''} onChange={(e) => updateExperienceRoleField(idx, rIdx, 'startDate', e.target.value)} className="h-8 text-sm" />
-                                  </div>
-                                  <div className="md:col-span-4 space-y-1">
-                                    <label className="text-xs text-muted-foreground">To</label>
-                                    <div className="flex items-center gap-1">
-                                      <Input type="month" value={role.endDate === 'Present' ? '' : (role.endDate || '')} onChange={(e) => updateExperienceRoleField(idx, rIdx, 'endDate', e.target.value)} disabled={role.endDate === 'Present'} className="h-8 text-sm" />
-                                      <Button type="button" size="sm" variant={role.endDate === 'Present' ? 'secondary' : 'outline'} className="h-8 px-2 text-xs" onClick={() => updateExperienceRoleField(idx, rIdx, 'endDate', role.endDate === 'Present' ? '' : 'Present')}>Present</Button>
+                                <div key={`role-${idx}-${rIdx}`} className="flex items-start gap-2 bg-gray-50 p-3 rounded-md relative group">
+                                  <div className="flex-1 grid grid-cols-1 md:grid-cols-11 gap-3 items-end">
+                                    <div className="md:col-span-4 space-y-1">
+                                      <label className="text-xs text-muted-foreground">Designation</label>
+                                      <Input value={role.title} onChange={(e) => updateExperienceRoleField(idx, rIdx, 'title', e.target.value)} className="h-8 text-sm" />
+                                    </div>
+                                    <div className="md:col-span-3 space-y-1">
+                                      <label className="text-xs text-muted-foreground">From</label>
+                                      <Input type="month" value={role.startDate || ''} onChange={(e) => updateExperienceRoleField(idx, rIdx, 'startDate', e.target.value)} className="h-8 text-sm" />
+                                    </div>
+                                    <div className="md:col-span-4 space-y-1">
+                                      <label className="text-xs text-muted-foreground">To</label>
+                                      <div className="flex items-center gap-1">
+                                        <Input type="month" value={role.endDate === 'Present' ? '' : (role.endDate || '')} onChange={(e) => updateExperienceRoleField(idx, rIdx, 'endDate', e.target.value)} disabled={role.endDate === 'Present'} className="h-8 text-sm" />
+                                        <Button type="button" size="sm" variant={role.endDate === 'Present' ? 'secondary' : 'outline'} className="h-8 px-2 text-xs" onClick={() => updateExperienceRoleField(idx, rIdx, 'endDate', role.endDate === 'Present' ? '' : 'Present')}>Present</Button>
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="md:col-span-1 flex justify-end pb-1">
+                                  <div className="flex items-end justify-end pb-2">
                                     <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeRoleFromCompany(idx, rIdx)} title="Remove role">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>

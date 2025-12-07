@@ -14,6 +14,10 @@ export class MemberRepository {
     return prisma.member.findUnique({ where: { email } });
   }
 
+  async findByUserId(userId: string): Promise<Member | null> {
+    return prisma.member.findFirst({ where: { user_id: userId } });
+  }
+
   async create(data: Omit<Member, "id">): Promise<Member> {
     const createData: Prisma.MemberUncheckedCreateInput = {
       ...data,
@@ -48,6 +52,19 @@ export class MemberRepository {
       ...(awards !== undefined ? { awards: awards as Prisma.InputJsonValue } : {}),
     } as Prisma.MemberUncheckedUpdateInput;
     return prisma.member.update({ where: { id }, data: updateData });
+  }
+
+  async deleteMemberServices(memberId: string): Promise<void> {
+    await prisma.memberService.deleteMany({ where: { member_id: memberId } });
+  }
+
+  async createMemberServices(
+    memberId: string,
+    pivots: Array<{ service_id: string; is_preferred: boolean; is_active: boolean; relevant_years_experience: number }>
+  ): Promise<void> {
+    await prisma.memberService.createMany({
+      data: pivots.map(p => ({ ...p, member_id: memberId }))
+    });
   }
 
   async delete(id: string): Promise<void> {

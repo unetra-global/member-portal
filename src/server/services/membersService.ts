@@ -17,15 +17,15 @@ export class MembersService {
 
   async create(payload: unknown): Promise<Member> {
     const data = validate(MemberCreateSchema, payload);
-    // Optional check to provide friendly error if email exists
-    const existing = await this.repo.findByEmail(data.email);
-    if (existing) {
-      throw new Error("email: already registered");
-    }
+
+    // Check if member already exists by user_id (not email)
+    const userId = (data as any).user_id ?? (data as any).email;
+    const existing = await this.repo.findByUserId(userId);
+
     const { member_services, ...memberData } = data as any;
     const ensuredMemberData = {
       ...memberData,
-      user_id: memberData.user_id ?? memberData.email,
+      user_id: userId,
     };
 
     // If service names provided, resolve to IDs and create pivot rows atomically
@@ -59,7 +59,24 @@ export class MembersService {
           return true;
         });
 
+      // If member exists, update it instead of creating
+      if (existing) {
+        // Update the member
+        const updated = await this.repo.update(existing.id, ensuredMemberData as Partial<Omit<Member, "id">>);
+
+        // Delete existing member_services and recreate them
+        await this.repo.deleteMemberServices(existing.id);
+        await this.repo.createMemberServices(existing.id, pivots);
+
+        return updated;
+      }
+
       return this.repo.createWithMemberServices(ensuredMemberData as Omit<Member, "id">, pivots);
+    }
+
+    // If member exists, update instead of create
+    if (existing) {
+      return this.repo.update(existing.id, ensuredMemberData as Partial<Omit<Member, "id">>);
     }
 
     // Fallback to simple member create if no services provided

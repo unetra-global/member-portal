@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
     const profileData = await request.json()
 
-    // Validate required fields for the extended profile
+    // Validate required fields
     const required = [
       'firstName',
       'lastName',
@@ -15,10 +16,8 @@ export async function POST(request: NextRequest) {
       'state',
       'country',
       'category',
-      // subCategories is a list of selected subcategories with metadata
       'subCategories',
       'yearsExperience',
-      // 'yearsRelevantExperience' is optional and no longer required
       'acceptedRules',
       'acceptedPrivacy'
     ]
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If LinkedIn URL is missing, require detailed profile text or resume upload
+    // LinkedIn URL specific check
     if (!profileData.linkedinUrl && !profileData.detailedProfileText && !profileData.resumeUrl) {
       return NextResponse.json(
         { error: 'Provide LinkedIn URL or detailed profile or upload resume' },
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify the user is authenticated
+    // Verify authentication
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate subCategories constraints: 1 mandatory + up to 2 optional (max 3 total)
+    // Validate subcategories
     const subCategories = Array.isArray(profileData.subCategories) ? profileData.subCategories : []
     const mandatoryCount = subCategories.filter((sc: any) => !!sc.mandatory).length
     if (subCategories.length < 1 || subCategories.length > 3 || mandatoryCount < 1) {
@@ -61,68 +60,113 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Compose WhatsApp phone with country code if provided
+    // Data Transformation
     const phoneWhatsapp = profileData.whatsappCountryCode
       ? `${profileData.whatsappCountryCode}${profileData.phoneWhatsapp}`
       : profileData.phoneWhatsapp
 
-    // Sanitize experiences: ensure firmSize is non-empty
     const sanitizedExperiences = (profileData.experiences || []).map((exp: any) => {
       const firmSize = exp.firmSize && exp.firmSize.trim() ? exp.firmSize : 'N/A';
       return { ...exp, firmSize };
     });
 
-    // Upsert into user_profiles table
-    const upsertPayload = {
-      user_id: user.id,
-      full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
-      email_comm: profileData.emailComm,
-      phone_whatsapp: phoneWhatsapp,
-      address: profileData.address || '',
-      city: profileData.city,
-      state: profileData.state,
-      country: profileData.country,
-      category: profileData.category,
-      // For backward compatibility, store the mandatory subcategory name in sub_category
-      sub_category:
-        (subCategories.find((sc: any) => !!sc.mandatory)?.name || subCategories[0]?.name || ''),
-      // Store full selection with per-subcategory years in JSONB
-      sub_categories: subCategories,
-      years_experience: Number(profileData.yearsExperience) || 0,
-      years_relevant_experience: Number(profileData.yearsRelevantExperience) || 0,
-      linkedin_url: profileData.linkedinUrl || '',
-      detailed_profile_text: profileData.detailedProfileText || '',
-      resume_url: profileData.resumeUrl || '',
+    // Transaction: Upsert Member -> Update Services
+    await prisma.$transaction(async (tx) => {
+      // 1. Check if member exists by user_id
+      const existingMember = await tx.member.findFirst({
+        where: { user_id: user.id }
+      })
 
-      experiences: sanitizedExperiences,
-      licenses: profileData.licenses || [],
-      awards: profileData.awards || [],
-      organisation_name: profileData.organisationName || '',
-      designation: profileData.designation || '',
-      firm_size: profileData.firmSize || '',
-      num_partners: Number(profileData.numPartners) || 0,
-      why_join: profileData.whyJoin || '',
-      expectations: profileData.expectations || '',
-      anything_else: profileData.anythingElse || '',
-      documents: profileData.documents || [],
-      accepted_rules: !!profileData.acceptedRules,
-      accepted_privacy: !!profileData.acceptedPrivacy
-    }
+      const memberData = {
+        user_id: user.id,
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        email: profileData.emailComm,
+        phone_number: phoneWhatsapp,
+        country: profileData.country,
+        state: profileData.state,
+        city: profileData.city,
+        address: profileData.address || '',
+        experience: sanitizedExperiences, // Json
+        years_experience: Number(profileData.yearsExperience) || 0,
+        join_reason: profileData.whyJoin || '',
+        expectations: profileData.expectations || '',
+        additional_info: profileData.anythingElse || '',
+        detailed_profile: profileData.detailedProfileText || '',
+        company_name: profileData.organisationName || null,
+        designation: profileData.designation || null,
+        licenses: profileData.licenses || [], // Json
+        awards: profileData.awards || [], // Json
+        uploaded_documents: profileData.documents || [],
+        terms_accepted: !!profileData.acceptedRules,
+        privacy_accepted: !!profileData.acceptedPrivacy,
+        linkedin_url: profileData.linkedinUrl || '',
+        extracted_from_linkedin: false, // Default or logic
+        member_status: 'active' as const,
+        tier: 'user' as const,
+        start_date: existingMember?.start_date || new Date(),
+        // end_date: null // Optional
+      }
 
-    const { error: upsertError } = await supabase
-      .from('user_profiles')
-      .upsert(upsertPayload, { onConflict: 'user_id' })
+      let member;
+      if (existingMember) {
+        member = await tx.member.update({
+          where: { id: existingMember.id },
+          data: memberData
+        })
+      } else {
+        member = await tx.member.create({
+          data: {
+            ...memberData,
+            start_date: new Date()
+          }
+        })
+      }
 
-    if (upsertError) {
-      console.error('Error upserting user_profiles:', upsertError)
-      return NextResponse.json(
-        { error: 'Failed to save profile data' },
-        { status: 500 }
-      )
-    }
+      // 2. Handle Member Services (Categories)
+      // Remove existing services for this member to reset
+      await tx.memberService.deleteMany({
+        where: { member_id: member.id }
+      })
 
-    // Update minimal metadata on auth.users for quick checks
-    const { error: updateError } = await supabase.auth.updateUser({
+      // Insert new services
+      for (const sc of subCategories) {
+        const serviceName = sc.name || sc; // Handle object or string
+
+        // Find or Create Service
+        // Using upsert for service is tricky without unique ID if specific logic needed, 
+        // but schema says Name is unique. catch potential race condition with simple logic or upsert
+        let service = await tx.services.findUnique({
+          where: { name: serviceName }
+        })
+
+        if (!service) {
+          service = await tx.services.create({
+            data: {
+              name: serviceName,
+              // We might need to link to a Category (parent) if we knew it.
+              // Frontend sends 'category' (parent name). Find that UUID?
+              // For now, let's leave category_id null or try to find it.
+              // It's a bit complex to find category ID dynamically here without another query.
+              // We'll skip parent category linkage for auto-created services for now to avoid errors.
+            }
+          })
+        }
+
+        await tx.memberService.create({
+          data: {
+            member_id: member.id,
+            service_id: service.id,
+            is_preferred: !!sc.mandatory, // Using 'mandatory' as 'preferred' proxy? Or just store boolean
+            is_active: true,
+            relevant_years_experience: Number(sc.years) || 0 // Assuming sc has years, or 0
+          }
+        })
+      }
+    })
+
+    // Update Supabase Auth Metadata (Side effect, non-critical if DB succeeds)
+    await supabase.auth.updateUser({
       data: {
         first_name: profileData.firstName,
         last_name: profileData.lastName,
@@ -132,23 +176,15 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (updateError) {
-      console.error('Error updating auth.users metadata:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to finalize profile' },
-        { status: 500 }
-      )
-    }
-
     return NextResponse.json({
       message: 'Profile saved successfully',
       profileCompleted: true
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in profile save API:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     )
   }

@@ -27,18 +27,18 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     }
-    
+
     checkUser()
   }, [router, supabase.auth])
 
   const handleAuthSuccess = async () => {
     setError(null)
     setSuccess("Authentication successful! Redirecting...")
-    
+
     // Check if user has completed their profile
     const { data: { user } } = await supabase.auth.getUser()
     const redirectPath = user?.user_metadata?.profile_completed ? '/dashboard' : '/profile/complete'
-    
+
     setTimeout(() => {
       router.push(redirectPath)
     }, 1000)
@@ -52,7 +52,7 @@ export default function LoginPage() {
   const handleSignUpSuccess = (email?: string) => {
     setError(null)
     // Redirect to verification page with email parameter
-    const verifyUrl = email 
+    const verifyUrl = email
       ? `/auth/verify-email?email=${encodeURIComponent(email)}`
       : '/auth/verify-email'
     router.push(verifyUrl)
@@ -67,8 +67,8 @@ export default function LoginPage() {
               {activeTab === "signin" ? "Welcome Back" : "Create Account"}
             </CardTitle>
             <CardDescription>
-              {activeTab === "signin" 
-                ? "Choose your preferred sign-in method" 
+              {activeTab === "signin"
+                ? "Choose your preferred sign-in method"
                 : "Choose how you'd like to create your account"
               }
             </CardDescription>
@@ -81,7 +81,7 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            
+
             {success && (
               <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
                 <div className="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center">
@@ -97,11 +97,11 @@ export default function LoginPage() {
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="signin" className="space-y-4 mt-4">
                 {/* LinkedIn Sign In */}
                 <LinkedInButton />
-                
+
                 {/* Email Auth Toggle */}
                 <Button
                   variant="ghost"
@@ -115,7 +115,7 @@ export default function LoginPage() {
                     <ChevronDown className="h-4 w-4" />
                   )}
                 </Button>
-                
+
                 {/* Email Sign In Form */}
                 {showEmailAuth && (
                   <SignInForm
@@ -124,11 +124,11 @@ export default function LoginPage() {
                   />
                 )}
               </TabsContent>
-              
+
               <TabsContent value="signup" className="space-y-4 mt-4">
                 {/* LinkedIn Sign Up */}
                 <LinkedInButton />
-                
+
                 {/* Email Auth Toggle */}
                 <Button
                   variant="ghost"
@@ -142,11 +142,11 @@ export default function LoginPage() {
                     <ChevronDown className="h-4 w-4" />
                   )}
                 </Button>
-                
+
                 {/* Email Sign Up Form */}
                 {showEmailAuth && (
                   <SignUpForm
-                    onSuccess={handleAuthSuccess}
+                    onSuccess={handleSignUpSuccess}
                     onError={handleAuthError}
                   />
                 )}

@@ -1,0 +1,406 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import {
+    User, MapPin, Mail, Phone, Briefcase, Award, Calendar,
+    LayoutDashboard, BookOpen, Target, Calendar as CalendarIcon,
+    Bookmark, Users, CheckCircle2, Trophy, Star
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+
+interface MemberProfile {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    phone_number: string
+    country: string
+    state: string
+    city: string
+    address: string
+    detailed_profile: string
+    years_experience: number
+    linkedin_url: string
+    experience: any[]
+    licenses: any[]
+    awards: any[]
+    services: Array<{
+        service: {
+            name: string
+            category: {
+                name: string
+            }
+        }
+        relevant_years_experience: number
+        is_preferred: boolean
+    }>
+}
+
+export default function MemberBioPage() {
+    const params = useParams()
+    const router = useRouter()
+    const [member, setMember] = useState<MemberProfile | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [activeNav, setActiveNav] = useState('dashboard')
+
+    useEffect(() => {
+        const fetchMember = async () => {
+            try {
+                const response = await fetch(`/member-portal/api/members/${params.id}`)
+                if (!response.ok) {
+                    throw new Error('Failed to fetch member profile')
+                }
+                const data = await response.json()
+                setMember(data)
+            } catch (err) {
+                setError((err as Error).message)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        if (params.id) {
+            fetchMember()
+        }
+    }, [params.id])
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading profile...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (error || !member) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <p className="text-red-600">Error: {error || 'Profile not found'}</p>
+                    <Button onClick={() => router.push('/dashboard')} className="mt-4 bg-blue-600 hover:bg-blue-700">
+                        Go to Dashboard
+                    </Button>
+                </div>
+            </div>
+        )
+    }
+
+    const fullName = `${member.first_name} ${member.last_name}`
+    const location = `${member.city}, ${member.state}, ${member.country}`
+    const initials = `${member.first_name[0]}${member.last_name[0]}`
+
+    const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'knowledge', label: 'Knowledge Hub', icon: BookOpen },
+        { id: 'opportunities', label: 'Opportunities', icon: Target },
+        { id: 'events', label: 'Events & Webinars', icon: CalendarIcon },
+        { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
+        { id: 'followers', label: 'Followers/Following', icon: Users },
+    ]
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex">
+            {/* Left Sidebar Navigation */}
+            <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0">
+                <div className="p-6">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 bg-blue-600 rounded flex items-center justify-center text-white font-bold">
+                            U
+                        </div>
+                        <span className="font-bold text-lg">Unetra Global</span>
+                    </div>
+
+                    <nav className="space-y-1">
+                        {navItems.map((item) => {
+                            const Icon = item.icon
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => {
+                                        setActiveNav(item.id)
+                                        if (item.id === 'dashboard') router.push('/dashboard')
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeNav === item.id
+                                        ? 'bg-blue-50 text-blue-700 font-medium'
+                                        : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Icon className="h-5 w-5" />
+                                    {item.label}
+                                </button>
+                            )
+                        })}
+                    </nav>
+                </div>
+            </aside>
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-auto">
+                {/* Header with Profile */}
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                    <div className="max-w-7xl mx-auto px-6 py-8">
+                        <div className="flex items-start gap-6">
+                            <div className="bg-white rounded-full p-1">
+                                <div className="bg-blue-600 rounded-full w-24 h-24 flex items-center justify-center text-3xl font-bold text-white">
+                                    {initials}
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <h1 className="text-3xl font-bold">{fullName}</h1>
+                                    <CheckCircle2 className="h-6 w-6 text-blue-300" />
+                                </div>
+                                <p className="text-blue-100 mb-3">Senior Tax Consultant</p>
+                                <div className="flex items-center gap-2 text-blue-100 mb-4">
+                                    <MapPin className="h-4 w-4" />
+                                    <span>{location}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Badge className="bg-white/20 text-white border-white/30">
+                                        {member.years_experience} years experience
+                                    </Badge>
+                                    {member.linkedin_url && (
+                                        <a
+                                            href={member.linkedin_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-blue-100 hover:text-white transition-colors"
+                                        >
+                                            View LinkedIn Profile →
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Content Grid */}
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Center Content (2 columns) */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* About Me */}
+                            {member.detailed_profile && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <User className="h-5 w-5" />
+                                            About Me
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                            {member.detailed_profile}
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Service Offerings */}
+                            {member.services && member.services.length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Briefcase className="h-5 w-5" />
+                                            Service Offerings
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {member.services.map((svc, idx) => (
+                                            <div key={idx} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <h3 className="font-semibold text-lg text-gray-900">{svc.service.name}</h3>
+                                                        <p className="text-sm text-gray-600 mt-1">{svc.service.category?.name || 'General'}</p>
+                                                        <p className="text-sm text-gray-500 mt-2">
+                                                            {svc.relevant_years_experience} years of relevant experience
+                                                        </p>
+                                                    </div>
+                                                    {svc.is_preferred && (
+                                                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                                            Preferred
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Recent Activity / Experience */}
+                            {member.experience && member.experience.length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Calendar className="h-5 w-5" />
+                                            Experience
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {member.experience.map((exp: any, idx: number) => (
+                                            <div key={idx} className="border-b last:border-0 pb-4 last:pb-0">
+                                                <h3 className="font-semibold text-lg text-gray-900">{exp.designation || 'Position'}</h3>
+                                                <p className="text-blue-600 font-medium mt-1">{exp.company_name}</p>
+                                                <div className="flex items-center gap-2 text-sm text-gray-600 mt-2">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>
+                                                        {exp.from_date ? new Date(exp.from_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Start'} - {' '}
+                                                        {exp.to_date ? new Date(exp.to_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Present'}
+                                                    </span>
+                                                </div>
+                                                {exp.firm_size && exp.firm_size !== 'N/A' && (
+                                                    <p className="text-sm text-gray-500 mt-1">Firm size: {exp.firm_size}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+
+                        {/* Right Sidebar */}
+                        <div className="space-y-6">
+                            {/* Membership Tier */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Trophy className="h-5 w-5" />
+                                        Membership Tier
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-center py-2">
+                                        <p className="text-sm text-gray-600 mb-2">Current: <span className="font-semibold text-gray-900">Silver</span></p>
+                                        <p className="text-sm text-gray-600">Next: <span className="font-semibold text-gray-900">Gold</span></p>
+                                        <div className="mt-4 bg-gray-200 rounded-full h-2">
+                                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: '65%' }}></div>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">65% complete</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Badges Earned */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Star className="h-5 w-5" />
+                                        Badges Earned
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex justify-around py-2">
+                                        <div className="text-center">
+                                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                <CheckCircle2 className="h-6 w-6 text-blue-600" />
+                                            </div>
+                                            <p className="text-xs text-gray-600">Verified</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                <Trophy className="h-6 w-6 text-yellow-600" />
+                                            </div>
+                                            <p className="text-xs text-gray-600">Author</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                <Users className="h-6 w-6 text-purple-600" />
+                                            </div>
+                                            <p className="text-xs text-gray-600">Speaker</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Contact Information */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Mail className="h-5 w-5" />
+                                        Contact Information
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <div>
+                                        <p className="text-xs text-gray-600 mb-1">Email</p>
+                                        <a href={`mailto:${member.email}`} className="text-sm text-blue-600 hover:underline break-all">
+                                            {member.email}
+                                        </a>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-600 mb-1">Phone</p>
+                                        <a href={`tel:${member.phone_number}`} className="text-sm text-blue-600 hover:underline">
+                                            {member.phone_number}
+                                        </a>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-600 mb-1">Location</p>
+                                        <p className="text-sm text-gray-900">{location}</p>
+                                        {member.address && member.address !== 'N/A' && (
+                                            <p className="text-xs text-gray-600 mt-1">{member.address}</p>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Credentials & Verification */}
+                            {((member.licenses && member.licenses.length > 0) || (member.awards && member.awards.length > 0)) && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-base">
+                                            <Award className="h-5 w-5" />
+                                            Credentials & Verification
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        {member.licenses && member.licenses.length > 0 && member.licenses.map((license: any, idx: number) => (
+                                            <div key={idx} className="border-l-2 border-green-500 pl-3 py-2">
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900">{license.title || license.name}</p>
+                                                        {license.issuer && (
+                                                            <p className="text-xs text-gray-600 mt-1">Issued by {license.issuer}</p>
+                                                        )}
+                                                        {license.year && (
+                                                            <p className="text-xs text-gray-500 mt-1">{license.year}</p>
+                                                        )}
+                                                    </div>
+                                                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {member.awards && member.awards.length > 0 && member.awards.map((award: any, idx: number) => (
+                                            <div key={idx} className="border-l-2 border-green-500 pl-3 py-2">
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900">{award.title || award.name}</p>
+                                                        {award.issuer && (
+                                                            <p className="text-xs text-gray-600 mt-1">By {award.issuer}</p>
+                                                        )}
+                                                        {award.year && (
+                                                            <p className="text-xs text-gray-500 mt-1">{award.year}</p>
+                                                        )}
+                                                    </div>
+                                                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}

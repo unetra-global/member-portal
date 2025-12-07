@@ -92,4 +92,12 @@ export class MembersService {
   async delete(id: string): Promise<void> {
     await this.repo.delete(id);
   }
+
+  async getByUserId(userId: string): Promise<Member | null> {
+    return this.repo.findByUserIdWithServices(userId);
+  }
+
+  async getWithServices(id: string): Promise<Member | null> {
+    return this.repo.findByIdWithServices(id);
+  }
 }

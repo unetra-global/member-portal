@@ -5,7 +5,7 @@ const service = new MembersService();
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const item = await service.get(id);
+  const item = await service.getWithServices(id);
   if (!item) return NextResponse.json({ error: "Not Found" }, { status: 404 });
   return NextResponse.json(item);
 }

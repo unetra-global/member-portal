@@ -828,8 +828,17 @@ export default function CompleteProfilePage() {
 
       if (response.ok) {
         const result = await response.json()
-        // Redirect to dashboard
-        router.push('/dashboard')
+
+        // Fetch the member profile to get the ID for redirect
+        const memberResponse = await fetch('/member-portal/api/members/me')
+        if (memberResponse.ok) {
+          const member = await memberResponse.json()
+          // Redirect to member bio page
+          router.push(`/profile/${member.id}`)
+        } else {
+          // Fallback to dashboard if can't fetch member
+          router.push('/dashboard')
+        }
       } else {
         const errorData = await response.json()
         setSubmitError(errorData.error || 'Failed to save profile')

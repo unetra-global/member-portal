@@ -4,10 +4,42 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LoadingPage } from "@/components/ui/loading"
-import { LogOut, User, Calendar, Shield } from "lucide-react"
+import { LogOut, User, Calendar, Shield, UserCircle } from "lucide-react"
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth()
+  const router = useRouter()
+  const [memberId, setMemberId] = useState<string | null>(null)
+  const [loadingMember, setLoadingMember] = useState(true)
+
+  useEffect(() => {
+    const fetchMemberId = async () => {
+      if (!user) return
+
+      try {
+        console.log('[Dashboard] Fetching member profile for user:', user.id)
+        const response = await fetch('/member-portal/api/members/me')
+        console.log('[Dashboard] Response status:', response.status)
+
+        if (response.ok) {
+          const member = await response.json()
+          console.log('[Dashboard] Member found:', member.id)
+          setMemberId(member.id)
+        } else {
+          const errorData = await response.json()
+          console.error('[Dashboard] Error fetching member:', errorData)
+        }
+      } catch (error) {
+        console.error('[Dashboard] Exception fetching member profile:', error)
+      } finally {
+        setLoadingMember(false)
+      }
+    }
+
+    fetchMemberId()
+  }, [user])
 
   if (loading) {
     return <LoadingPage text="Loading dashboard..." />
@@ -63,6 +95,42 @@ export default function DashboardPage() {
                   </p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Profile Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCircle className="h-5 w-5" />
+                My Profile
+              </CardTitle>
+              <CardDescription>
+                View your member bio page
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingMember ? (
+                <Button variant="outline" className="w-full" disabled>
+                  Loading...
+                </Button>
+              ) : memberId ? (
+                <Button
+                  variant="default"
+                  className="w-full"
+                  onClick={() => router.push(`/profile/${memberId}`)}
+                >
+                  View My Profile
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push('/profile/complete')}
+                >
+                  Complete Profile
+                </Button>
+              )}
             </CardContent>
           </Card>
 

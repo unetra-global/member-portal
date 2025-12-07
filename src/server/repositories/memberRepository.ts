@@ -18,6 +18,40 @@ export class MemberRepository {
     return prisma.member.findFirst({ where: { user_id: userId } });
   }
 
+  async findByIdWithServices(id: string) {
+    return prisma.member.findUnique({
+      where: { id },
+      include: {
+        services: {
+          include: {
+            service: {
+              include: {
+                category: true
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  async findByUserIdWithServices(userId: string) {
+    return prisma.member.findFirst({
+      where: { user_id: userId },
+      include: {
+        services: {
+          include: {
+            service: {
+              include: {
+                category: true
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   async create(data: Omit<Member, "id">): Promise<Member> {
     const createData: Prisma.MemberUncheckedCreateInput = {
       ...data,

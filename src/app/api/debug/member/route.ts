@@ -24,7 +24,7 @@ export async function GET() {
         });
 
         const currentUserId = user.id;
-        const matchingMember = allMembers.find(m => m.user_id === currentUserId);
+        const matchingMember = allMembers.find((m: typeof allMembers[0]) => m.user_id === currentUserId);
 
         return NextResponse.json({
             currentUserId,
@@ -36,7 +36,7 @@ export async function GET() {
                 email: matchingMember.email,
                 name: `${matchingMember.first_name} ${matchingMember.last_name}`
             } : null,
-            allMemberUserIds: allMembers.map(m => ({
+            allMemberUserIds: allMembers.map((m: typeof allMembers[0]) => ({
                 id: m.id,
                 user_id: m.user_id,
                 email: m.email

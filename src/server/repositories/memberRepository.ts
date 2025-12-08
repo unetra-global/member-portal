@@ -53,7 +53,11 @@ export class MemberRepository {
   }
 
   async create(data: Omit<Member, "id">): Promise<Member> {
+    // Generate UUID for the member
+    const memberId = crypto.randomUUID();
+
     const createData: Prisma.MemberUncheckedCreateInput = {
+      id: memberId, // Explicitly set member ID
       ...data,
       // Cast JSON to InputJsonValue to satisfy Prisma input types
       experience: data.experience as Prisma.InputJsonValue,
@@ -67,12 +71,24 @@ export class MemberRepository {
     data: Omit<Member, "id">,
     pivots: Array<{ service_id: string; is_preferred: boolean; is_active: boolean; relevant_years_experience: number }>
   ): Promise<Member> {
+    // Generate UUID for the member
+    const memberId = crypto.randomUUID();
+
+    // Generate UUIDs for each member_service and add to pivots
+    const pivotsWithIds = pivots.map(pivot => ({
+      id: crypto.randomUUID(), // Generate UUID for member_service
+      ...pivot,
+    }));
+
     const createData: Prisma.MemberUncheckedCreateInput = {
+      id: memberId, // Explicitly set member ID
       ...data,
       experience: data.experience as Prisma.InputJsonValue,
       licenses: data.licenses as Prisma.InputJsonValue,
       awards: data.awards as Prisma.InputJsonValue,
-      services: { create: pivots },
+      services: {
+        create: pivotsWithIds, // Use pivots with IDs
+      },
     };
     return prisma.member.create({ data: createData });
   }

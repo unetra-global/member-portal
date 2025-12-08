@@ -11,12 +11,35 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    // Get authenticated user from Supabase
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    console.log("User data:", user);
+    console.log("Auth error:", authError);
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
-    const created = await service.create(body);
+
+    // Ensure user_id is set to the authenticated user's ID from Supabase Auth
+    const memberData = {
+      ...body,
+      user_id: user.id, // Always use the authenticated user's ID
+      email: body.email || user.email, // Fallback to auth email if not provided
+    };
+
+    console.log("Member data:", memberData);
+
+    const created = await service.create(memberData);
 
     // Update Supabase Auth metadata to mark profile as completed
     try {
-      const supabase = await createClient();
       await supabase.auth.updateUser({
         data: {
           profile_completed: true,

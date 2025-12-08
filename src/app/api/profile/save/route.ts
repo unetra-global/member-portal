@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Transaction: Upsert Member -> Update Services
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // 1. Check if member exists by user_id
       const existingMember = await tx.member.findFirst({
         where: { user_id: user.id }

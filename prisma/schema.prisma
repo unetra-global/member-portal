@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberStatus {
+  active
+  blocked
+}
+
+enum Tier {
+  user
+  member
+  admin
+  ops
+}
+
+model Category {
+  id       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name     String     @unique
+  field    String
+  services Services[]
+
+  @@map("category")
+}
+
+model Services {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String          @unique
+  category_id    String?         @db.Uuid
+  category       Category?       @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  memberServices MemberService[]
+
+  @@index([category_id])
+  @@map("services")
+}
+
+model Member {
+  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                  String          @unique
+  first_name               String
+  last_name                String
+  email                    String
+  phone_number             String
+  country                  String
+  state                    String
+  city                     String
+  address                  String
+  experience               Json
+  years_experience         Int
+  join_reason              String
+  expectations             String
+  additional_info          String
+  detailed_profile         String
+  company_name             String?
+  designation              String?
+  licenses                 Json?
+  awards                   Json?
+  uploaded_documents       String[]
+  terms_accepted           Boolean
+  privacy_accepted         Boolean
+  linkedin_url             String
+  extracted_from_linkedin  Boolean
+  member_status            MemberStatus    @default(active)
+  tier                     Tier            @default(user)
+  start_date               DateTime
+  end_date                 DateTime?
+  services                 MemberService[]
+
+  @@map("member")
+}
+
+model MemberService {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id                 String   @db.Uuid
+  service_id                String   @db.Uuid
+  is_preferred              Boolean
+  is_active                 Boolean
+  relevant_years_experience Int
+  member                    Member   @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  service                   Services @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id, service_id])
+  @@index([member_id])
+  @@index([service_id])
+  @@map("member_service")
+}

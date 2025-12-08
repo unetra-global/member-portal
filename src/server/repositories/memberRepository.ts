@@ -11,7 +11,7 @@ export class MemberRepository {
   }
 
   async findByEmail(email: string): Promise<Member | null> {
-    return prisma.member.findUnique({ where: { email } });
+    return prisma.member.findFirst({ where: { email } });
   }
 
   async findByUserId(userId: string): Promise<Member | null> {

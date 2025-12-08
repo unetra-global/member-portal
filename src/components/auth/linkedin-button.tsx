@@ -7,6 +7,7 @@ import { useState } from "react"
 
 interface LinkedInButtonProps {
   className?: string
+  mode?: 'signin' | 'signup' // Add mode prop
 }
 
 const LinkedInIcon = () => (
@@ -22,13 +23,17 @@ const LinkedInIcon = () => (
   </svg>
 )
 
-export function LinkedInButton({ className }: LinkedInButtonProps) {
+export function LinkedInButton({ className, mode = 'signin' }: LinkedInButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClient()
 
   const handleLinkedInLogin = async () => {
     try {
       setIsLoading(true)
+
+      // Store mode in a cookie that will survive the OAuth redirect
+      document.cookie = `oauth_mode=${mode}; path=/; max-age=300`; // 5 minutes
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'linkedin_oidc',
         options: {

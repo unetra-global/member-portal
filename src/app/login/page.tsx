@@ -29,6 +29,15 @@ export default function LoginPage() {
     }
 
     checkUser()
+
+    // Check for error in URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, [router, supabase.auth])
 
   const handleAuthSuccess = async () => {
@@ -100,7 +109,7 @@ export default function LoginPage() {
 
               <TabsContent value="signin" className="space-y-4 mt-4">
                 {/* LinkedIn Sign In */}
-                <LinkedInButton />
+                <LinkedInButton mode="signin" />
 
                 {/* Email Auth Toggle */}
                 <Button
@@ -127,7 +136,7 @@ export default function LoginPage() {
 
               <TabsContent value="signup" className="space-y-4 mt-4">
                 {/* LinkedIn Sign Up */}
-                <LinkedInButton />
+                <LinkedInButton mode="signup" />
 
                 {/* Email Auth Toggle */}
                 <Button

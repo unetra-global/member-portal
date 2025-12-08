@@ -18,14 +18,26 @@ export class MembersService {
   async create(payload: unknown): Promise<Member> {
     const data = validate(MemberCreateSchema, payload);
 
-    // Check if member already exists by user_id (not email)
-    const userId = (data as any).user_id ?? (data as any).email;
+    // user_id should always be provided from the authenticated session
+    const userId = (data as any).user_id;
+
+    console.log("User ID from payload: MembersService ", userId);
+
+    if (!userId) {
+      throw new Error("user_id is required and must come from authenticated session");
+    }
+
     const existing = await this.repo.findByUserId(userId);
 
-    const { member_services, ...memberData } = data as any;
+    const { member_services, id, ...memberData } = data as any;
     const ensuredMemberData = {
       ...memberData,
       user_id: userId,
+      // Ensure optional fields are explicitly null if not provided
+      company_name: memberData.company_name || null,
+      designation: memberData.designation || null,
+      licenses: memberData.licenses || null,
+      awards: memberData.awards || null,
     };
 
     // If service names provided, resolve to IDs and create pivot rows atomically

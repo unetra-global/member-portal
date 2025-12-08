@@ -33,9 +33,6 @@ COPY . .
 
 # Environment variables will be provided at runtime via docker-compose.yml
 
-# Generate Prisma Client with correct binary targets
-RUN npx prisma generate
-
 # Build the application (standalone mode)
 RUN npm run build
 
@@ -59,11 +56,6 @@ COPY --from=builder /app/public ./public
 # Copy standalone output (includes minimal dependencies)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy Prisma client and schema (Next.js standalone doesn't include these)
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Switch to non-root user
 USER nextjs

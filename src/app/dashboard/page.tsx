@@ -4,9 +4,16 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LoadingPage } from "@/components/ui/loading"
-import { LogOut, User, Calendar, Shield, UserCircle } from "lucide-react"
+import { LogOut, User, UserCircle } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth()
@@ -41,6 +48,19 @@ export default function DashboardPage() {
     fetchMemberId()
   }, [user])
 
+  const handleLogout = async () => {
+    await signOut()
+    router.push('/member-portal/login')
+  }
+
+  const handleViewProfile = () => {
+    if (memberId) {
+      router.push(`/profile/${memberId}`)
+    } else {
+      router.push('/profile/complete')
+    }
+  }
+
   if (loading) {
     return <LoadingPage text="Loading dashboard..." />
   }
@@ -55,10 +75,26 @@ export default function DashboardPage() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+
+          {/* Profile Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="rounded-full">
+                <UserCircle className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleViewProfile} disabled={loadingMember}>
+                <User className="h-4 w-4 mr-2" />
+                {loadingMember ? 'Loading...' : memberId ? 'View Profile' : 'Complete Profile'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Log Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -95,42 +131,6 @@ export default function DashboardPage() {
                   </p>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Profile Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserCircle className="h-5 w-5" />
-                My Profile
-              </CardTitle>
-              <CardDescription>
-                View your member bio page
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingMember ? (
-                <Button variant="outline" className="w-full" disabled>
-                  Loading...
-                </Button>
-              ) : memberId ? (
-                <Button
-                  variant="default"
-                  className="w-full"
-                  onClick={() => router.push(`/profile/${memberId}`)}
-                >
-                  View My Profile
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => router.push('/profile/complete')}
-                >
-                  Complete Profile
-                </Button>
-              )}
             </CardContent>
           </Card>
 

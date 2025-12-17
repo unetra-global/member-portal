@@ -9,10 +9,10 @@ export const MemberExperienceItemSchema = z.object({
   company_name: z.string().min(1),
   company_linkedin_id: z.string().optional(),
   designation: z.string().min(1),
-  firm_size: z.string().min(1),
-  number_of_partners: z.number().int().min(0),
+  firm_size: z.string().nullable().optional(),
+  number_of_partners: z.number().int().min(0).nullable().optional(),
   from_date: z.coerce.date(),
-  to_date: z.coerce.date().optional(),
+  to_date: z.coerce.date().nullable().optional(),
 });
 
 export const MemberExperienceSchema = z.array(MemberExperienceItemSchema);
@@ -55,6 +55,8 @@ export const MemberBaseSchema = z.object({
   expectations: z.string().min(1),
   additional_info: z.string().min(1),
   detailed_profile: z.string().min(1),
+  licenses: z.any().optional(),
+  awards: z.any().optional(),
   uploaded_documents: z.array(z.string().min(1)),
   terms_accepted: z.boolean(),
   privacy_accepted: z.boolean(),

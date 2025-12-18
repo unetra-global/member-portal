@@ -1,23 +1,47 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { LinkedInButton } from "@/components/auth/linkedin-button"
-import { SignInForm } from "@/components/auth/sign-in-form"
-import { SignUpForm } from "@/components/auth/sign-up-form"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from "@/lib/supabase/client";
+import { Eye, EyeOff, Loader2, Facebook, Linkedin, Mail } from "lucide-react";
+import "./auth-styles.css";
+
+// SVG Google Icon component since Lucide doesn't have it standard
+const GoogleIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 48 48"
+    className={className}
+    width="24" height="24"
+  >
+    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+  </svg>
+);
 
 export default function LoginPage() {
-  const [activeTab, setActiveTab] = useState("signin")
-  const [showEmailAuth, setShowEmailAuth] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
+  const [isPanelActive, setIsPanelActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
+
+  // Form States
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
+  // Password Visibility States
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+
+  // Error messages
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -29,146 +53,216 @@ export default function LoginPage() {
     }
 
     checkUser()
-  }, [router, supabase.auth])
+  }, [router, supabase.auth]);
 
-  const handleAuthSuccess = async () => {
-    setError(null)
-    setSuccess("Authentication successful! Redirecting...")
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoginError(null);
 
-    // Check if user has completed their profile
-    const { data: { user } } = await supabase.auth.getUser()
-    const redirectPath = user?.user_metadata?.profile_completed ? '/dashboard' : '/profile/complete'
+    const form = e.currentTarget;
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
 
-    setTimeout(() => {
-      router.push(redirectPath)
-    }, 1000)
-  }
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
 
-  const handleAuthError = (errorMessage: string) => {
-    setError(errorMessage)
-    setSuccess(null)
-  }
+      if (error) {
+        setLoginError(error.message);
+      } else {
+        // Success - redirect is handled by useEffect or here
+        const { data: { user } } = await supabase.auth.getUser();
+        const redirectPath = user?.user_metadata?.profile_completed ? '/dashboard' : '/profile/complete';
+        router.push(redirectPath);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setLoginError('An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const handleSignUpSuccess = (email?: string) => {
-    setError(null)
-    // Redirect to verification page with email parameter
-    const verifyUrl = email
-      ? `/auth/verify-email?email=${encodeURIComponent(email)}`
-      : '/auth/verify-email'
-    router.push(verifyUrl)
-  }
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setRegError(null);
+    const form = e.currentTarget;
+
+    if (regPassword !== regConfirmPassword) {
+      setRegError("Passwords do not match");
+      return;
+    }
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signUp({
+        email: regEmail,
+        password: regPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      });
+
+      if (error) {
+        setRegError(error.message);
+      } else {
+        alert("Registration successful! Please check your email to verify your account.");
+        setIsPanelActive(false); // Switch to login
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setRegError('An unexpected error occurred during registration.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Real-time validation logic simplified for React
+  const handlePasswordInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setRegPassword(val);
+    // Custom validity logic can be added here if strict adherence to legacy is needed, 
+    // but basic HTML5 attributes + explicit checks on submit are usually better in React.
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
-        <Card className="shadow-lg">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-semibold">
-              {activeTab === "signin" ? "Welcome Back" : "Create Account"}
-            </CardTitle>
-            <CardDescription>
-              {activeTab === "signin"
-                ? "Choose your preferred sign-in method"
-                : "Choose how you'd like to create your account"
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Error/Success Messages */}
-            {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-                <AlertCircle size={16} />
-                {error}
+    <div className="auth-container-wrapper bg-white dark:bg-gray-900">
+      <div className={`auth-wrapper ${isPanelActive ? 'panel-active' : ''}`} id="authWrapper">
+
+        {/* Sign Up Form */}
+        <div className="auth-form-box register-form-box">
+          <form onSubmit={handleRegister}>
+            <h1>Create Account</h1>
+            <div className="social-links">
+              <a href="#" aria-label="Facebook"><Facebook className="w-5 h-5" /></a>
+              <a href="#" aria-label="Google"><GoogleIcon className="w-5 h-5" /></a>
+              <a href="#" aria-label="LinkedIn"><Linkedin className="w-5 h-5" /></a>
+            </div>
+            <span>or use your email for registration</span>
+
+            {regError && <div className="text-red-500 text-sm mb-2">{regError}</div>}
+
+            <input
+              type="email"
+              placeholder="Email Address"
+              required
+              value={regEmail}
+              onChange={(e) => setRegEmail(e.target.value)}
+            />
+            <div className="input-group">
+              <input
+                type={showRegPassword ? "text" : "password"}
+                placeholder="Password"
+                required
+                value={regPassword}
+                onChange={handlePasswordInput}
+                pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
+              />
+              <div
+                className="toggle-password"
+                onClick={() => setShowRegPassword(!showRegPassword)}
+              >
+                {showRegPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </div>
-            )}
-
-            {success && (
-              <div className="flex items-center gap-2 p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                <div className="w-4 h-4 rounded-full bg-green-600 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                </div>
-                {success}
+            </div>
+            <div className="input-group">
+              <input
+                type={showRegConfirmPassword ? "text" : "password"}
+                placeholder="Confirm Password"
+                required
+                value={regConfirmPassword}
+                onChange={(e) => setRegConfirmPassword(e.target.value)}
+              />
+              <div
+                className="toggle-password"
+                onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+              >
+                {showRegConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </div>
-            )}
+            </div>
+            <button type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign Up"}
+            </button>
+            <div className="mobile-switch">
+              <p>Already have an account?</p>
+              <button type="button" onClick={() => setIsPanelActive(false)}>Sign In</button>
+            </div>
+          </form>
+        </div>
 
-            {/* Tab Selection */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
+        {/* Sign In Form */}
+        <div className="auth-form-box login-form-box">
+          <form onSubmit={handleLogin}>
+            <h1>Sign In</h1>
+            <div className="social-links">
+              <a href="#" aria-label="Facebook"><Facebook className="w-5 h-5" /></a>
+              <a href="#" aria-label="Google"><GoogleIcon className="w-5 h-5" /></a>
+              <a href="#" aria-label="LinkedIn"><Linkedin className="w-5 h-5" /></a>
+            </div>
+            <span>or use your account</span>
 
-              <TabsContent value="signin" className="space-y-4 mt-4">
-                {/* LinkedIn Sign In */}
-                <LinkedInButton />
+            {loginError && <div className="text-red-500 text-sm mb-2">{loginError}</div>}
 
-                {/* Email Auth Toggle */}
-                <Button
-                  variant="ghost"
-                  className="w-full justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowEmailAuth(!showEmailAuth)}
-                >
-                  Continue with Email
-                  {showEmailAuth ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
+            <input
+              type="email"
+              placeholder="Email Address"
+              required
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+            />
+            <div className="input-group">
+              <input
+                type={showLoginPassword ? "text" : "password"}
+                placeholder="Password"
+                required
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+              <div
+                className="toggle-password"
+                onClick={() => setShowLoginPassword(!showLoginPassword)}
+              >
+                {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </div>
+            </div>
+            <a href="#">Forgot your password?</a>
+            <button type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
+            </button>
+            <div className="mobile-switch">
+              <p>Don't have an account?</p>
+              <button type="button" onClick={() => setIsPanelActive(true)}>Sign Up</button>
+            </div>
+          </form>
+        </div>
 
-                {/* Email Sign In Form */}
-                {showEmailAuth && (
-                  <SignInForm
-                    onSuccess={handleAuthSuccess}
-                    onError={handleAuthError}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="signup" className="space-y-4 mt-4">
-                {/* LinkedIn Sign Up */}
-                <LinkedInButton />
-
-                {/* Email Auth Toggle */}
-                <Button
-                  variant="ghost"
-                  className="w-full justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowEmailAuth(!showEmailAuth)}
-                >
-                  Create with Email
-                  {showEmailAuth ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
-
-                {/* Email Sign Up Form */}
-                {showEmailAuth && (
-                  <SignUpForm
-                    onSuccess={handleSignUpSuccess}
-                    onError={handleAuthError}
-                  />
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <div className="text-center text-sm text-muted-foreground">
-          <p>
-            By signing in, you agree to our{" "}
-            <a href="#" className="underline hover:text-foreground">
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a href="#" className="underline hover:text-foreground">
-              Privacy Policy
-            </a>
-          </p>
+        {/* Overlay Panel */}
+        <div className="slide-panel-wrapper">
+          <div className="slide-panel">
+            <div className="panel-content panel-content-left">
+              <h1>Welcome Back!</h1>
+              <p>Stay connected by logging in with your credentials and continue your experience</p>
+              <button className="transparent-btn" onClick={() => setIsPanelActive(false)}>Sign In</button>
+            </div>
+            <div className="panel-content panel-content-right">
+              <h1>Hey There!</h1>
+              <p>Begin your amazing journey by creating an account with us today</p>
+              <button className="transparent-btn" onClick={() => setIsPanelActive(true)}>Sign Up</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

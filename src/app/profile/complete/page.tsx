@@ -1511,7 +1511,7 @@ export default function CompleteProfilePage() {
                                   <Input type="number" min={0} value={sc.years} onChange={(e) => setSubCategoryYears(sc.name, e.target.value)} />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <label className="text-xs text-muted-foreground">Mandatory</label>
+                                  <label className="text-xs text-muted-foreground">Preferred</label>
                                   <input type="radio" name="mandatory-subcategory" checked={sc.mandatory} onChange={() => setMandatorySubCategory(sc.name)} />
                                 </div>
                                 <div className="flex items-center justify-end">

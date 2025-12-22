@@ -22,6 +22,13 @@ enum Tier {
   ops
 }
 
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  UNDER_REVIEW
+}
+
 model Category {
   id       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name     String     @unique
@@ -43,36 +50,39 @@ model Services {
 }
 
 model Member {
-  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                  String          @unique
-  first_name               String
-  last_name                String
-  email                    String
-  phone_number             String
-  country                  String
-  state                    String
-  city                     String
-  address                  String
-  experience               Json
-  years_experience         Int
-  join_reason              String
-  expectations             String
-  additional_info          String
-  detailed_profile         String
-  company_name             String?
-  designation              String?
-  licenses                 Json?
-  awards                   Json?
-  uploaded_documents       String[]
-  terms_accepted           Boolean
-  privacy_accepted         Boolean
-  linkedin_url             String
-  extracted_from_linkedin  Boolean
-  member_status            MemberStatus    @default(active)
-  tier                     Tier            @default(user)
-  start_date               DateTime
-  end_date                 DateTime?
-  services                 MemberService[]
+  id                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                 String           @unique
+  first_name              String
+  last_name               String
+  email                   String
+  phone_number            String
+  country                 String
+  state                   String
+  city                    String
+  address                 String
+  experience              Json
+  years_experience        Int
+  join_reason             String
+  expectations            String
+  additional_info         String
+  detailed_profile        String
+  company_name            String?
+  designation             String?
+  licenses                Json?
+  awards                  Json?
+  uploaded_documents      String[]
+  terms_accepted          Boolean
+  privacy_accepted        Boolean
+  linkedin_url            String
+  extracted_from_linkedin Boolean
+  member_status           MemberStatus     @default(active)
+  tier                    Tier             @default(user)
+  start_date              DateTime
+  end_date                DateTime?
+  services                MemberService[]
+  posts                   Post[]
+  articles                Article[]
+  article_comments        ArticleComment[]
 
   @@map("member")
 }
@@ -91,4 +101,98 @@ model MemberService {
   @@index([member_id])
   @@index([service_id])
   @@map("member_service")
+}
+
+model Post {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id String @db.Uuid
+  member    Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  content    String  @db.Text
+  image_data String? @db.Text
+  post_type  String  @default("post")
+
+  likes_count   Int @default(0)
+  reposts_count Int @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([member_id])
+  @@index([created_at])
+  @@map("post")
+}
+
+model Article {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id String @db.Uuid
+  member    Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  // Core Content
+  title       String  @db.VarChar(200)
+  slug        String  @unique @db.VarChar(250)
+  subtitle    String? @db.VarChar(300)
+  summary     String  @db.Text
+  content     String  @db.Text
+  cover_image String? @db.Text
+
+  // Metadata
+  status       ArticleStatus @default(DRAFT)
+  tags         String[]
+  reading_time Int           @default(0)
+  word_count   Int           @default(0)
+
+  // Engagement
+  view_count     Int @default(0)
+  likes_count    Int @default(0)
+  bookmark_count Int @default(0)
+
+  // Publishing
+  published_at   DateTime?
+  last_edited_at DateTime  @updatedAt
+  created_at     DateTime  @default(now())
+
+  // Relations
+  versions ArticleVersion[]
+  comments ArticleComment[]
+
+  @@unique([member_id, slug])
+  @@index([member_id])
+  @@index([status])
+  @@index([published_at])
+  @@index([tags])
+  @@map("article")
+}
+
+model ArticleVersion {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  article_id String  @db.Uuid
+  article    Article @relation(fields: [article_id], references: [id], onDelete: Cascade)
+
+  version Int
+  title   String @db.VarChar(200)
+  content String @db.Text
+  summary String @db.Text
+
+  created_at DateTime @default(now())
+  created_by String   @db.Uuid
+
+  @@index([article_id])
+  @@map("article_version")
+}
+
+model ArticleComment {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  article_id String  @db.Uuid
+  article    Article @relation(fields: [article_id], references: [id], onDelete: Cascade)
+  member_id  String  @db.Uuid
+  member     Member  @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([article_id])
+  @@index([member_id])
+  @@map("article_comment")
 }

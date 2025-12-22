@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LoadingPage } from "@/components/ui/loading"
-import { LogOut, User, UserCircle } from "lucide-react"
+import { LogOut, User, UserCircle, Rss } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
@@ -131,6 +131,24 @@ export default function DashboardPage() {
                   </p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Feed Card */}
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push('/feed')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Rss className="h-5 w-5" />
+                Feed
+              </CardTitle>
+              <CardDescription>
+                View and create posts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full">
+                Open Feed
+              </Button>
             </CardContent>
           </Card>
 
